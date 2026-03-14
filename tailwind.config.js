@@ -8,11 +8,14 @@ export default {
     extend: {
       colors: {
         luxury: {
-          bordeaux: '#4A0404', // Deep, rich burgundy
-          gold: '#D4AF37',     // Classic gold
-          cream: '#FDFCF8',    // Premium off-white
-          charcoal: '#1A1A1A'  // Deep black for text
+          bordeaux: '#4A0404',
+          gold: '#D4AF37',
+          cream: '#FDFCF8',
+          charcoal: '#1A1A1A'
         }
+      },
+      fontFamily: {
+        serif: ['Playfair Display', 'serif'],
       }
     },
   },
