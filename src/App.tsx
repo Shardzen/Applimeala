@@ -11,7 +11,7 @@ import {
   Utensils, ShoppingCart, ChefHat, Camera, TrendingUp, ChevronRight, CheckCircle2,
   Loader2, X, Award, History as HistoryIcon, LogOut, Sparkles,
   Droplets, Plus, Minus, Dumbbell, Zap, Target, ExternalLink, Mail, Lock as LockIcon,
-  Moon, Sun, MessageSquare
+  Moon, Sun, MessageSquare, Inbox
 } from 'lucide-react';
 import { Toaster, toast } from 'sonner';
 import { clsx, type ClassValue } from 'clsx';
@@ -44,6 +44,7 @@ function App() {
   const [onboardingStep, setOnboardingStep] = useState(1);
   const [isAuthLoading, setIsAuthLoading] = useState(true);
   const [isAppLoading, setIsAppLoading] = useState(false);
+  const [isVerifyingEmail, setIsVerifyingEmail] = useState(false);
   const [activeTab, setActiveTab] = useState<'dashboard' | 'meals' | 'studio' | 'shopping' | 'progress'>('dashboard');
   
   const [authMode, setAuthMode] = useState<'signin' | 'signup' | 'forgot'>('signin');
@@ -66,8 +67,12 @@ function App() {
   const [isAILoading, setIsAILoading] = useState(false);
   const [checkedItems, setCheckedItems] = useState<string[]>([]);
   
-  // PERSISTENT THEME
-  const [isDarkMode, setIsDarkMode] = useState(() => localStorage.getItem('theme') === 'dark');
+  // THEME MANAGEMENT
+  const [isDarkMode, setIsDarkMode] = useState(() => {
+    const saved = localStorage.getItem('theme');
+    return saved === 'dark' || (!saved && window.matchMedia('(prefers-color-scheme: dark)').matches);
+  });
+
   const [portions, setPortions] = useState(1);
   const [isConciergeOpen, setIsConciergeOpen] = useState(false);
   const [chatInput, setChatInput] = useState('');
@@ -83,6 +88,7 @@ function App() {
   useEffect(() => { checkUser(); }, []);
   useEffect(() => { if (profile) setTargets(calculateNutritionTargets(profile)); }, [profile]);
   
+  // Theme effect at root level
   useEffect(() => {
     if (isDarkMode) {
       document.documentElement.classList.add('dark');
@@ -105,13 +111,28 @@ function App() {
   };
 
   const handleAuth = async () => {
-    if (!email) return toast.error("Entrez votre email");
+    if (!email) return toast.error("Veuillez entrer votre adresse email.");
     setIsAppLoading(true);
     try {
-      if (authMode === 'signin') { await signIn(email, password); toast.success('Bienvenue au Palais.'); await checkUser(); }
-      else if (authMode === 'signup') { await signUp(email, password); toast.success('Vérifiez vos emails.'); setAuthMode('signin'); }
-      else { await resetPassword(email); toast.success('Lien envoyé.'); setAuthMode('signin'); }
-    } catch (e: any) { toast.error(e.message); } finally { setIsAppLoading(false); }
+      if (authMode === 'signin') { 
+        await signIn(email, password); 
+        toast.success('Bienvenue au Palais.'); 
+        await checkUser(); 
+      }
+      else if (authMode === 'signup') { 
+        await signUp(email, password); 
+        setIsVerifyingEmail(true); // SHOW VERIFICATION SCREEN
+      }
+      else { 
+        await resetPassword(email); 
+        toast.success('Un lien de réinitialisation a été envoyé.'); 
+        setAuthMode('signin'); 
+      }
+    } catch (e: any) { 
+      toast.error(e.message); 
+    } finally { 
+      setIsAppLoading(false); 
+    }
   };
 
   const handleGenerate = async (prof = profile) => {
@@ -131,7 +152,7 @@ function App() {
     setHasOnboarded(true);
     handleGenerate();
     setIsAppLoading(false);
-    toast.success('Signature Elite activée.');
+    toast.success('Votre Signature Elite a été activée.');
   };
 
   const logWorkout = (w: Workout) => {
@@ -161,35 +182,61 @@ function App() {
 
   if (isAuthLoading) return <div className="h-screen bg-luxury-cream dark:bg-midnight-base flex items-center justify-center"><Loader2 className="animate-spin text-luxury-gold" size={48} /></div>;
 
+  // --- VERIFICATION SCREEN ---
+  if (isVerifyingEmail) {
+    return (
+      <div className="min-h-screen bg-luxury-cream dark:bg-midnight-base p-8 flex flex-col justify-center items-center text-center space-y-10 animate-in fade-in duration-1000">
+        <div className="bg-white dark:bg-midnight-surface p-12 rounded-[60px] shadow-2xl border border-luxury-gold/10 relative overflow-hidden max-w-md w-full">
+           <div className="absolute top-0 left-0 w-full h-2 bg-luxury-gold animate-pulse" />
+           <div className="w-24 h-24 bg-luxury-gold/10 rounded-[32px] flex items-center justify-center mx-auto mb-8 text-luxury-gold">
+              <Inbox size={48} />
+           </div>
+           <h1 className="text-3xl font-serif font-black text-luxury-charcoal dark:text-luxury-cream mb-4">Signature en attente</h1>
+           <p className="text-luxury-bordeaux/60 dark:text-luxury-gold/60 font-medium leading-relaxed mb-10">
+              Un message de confirmation a été envoyé à <strong>{email}</strong>. <br/><br/>
+              Veuillez valider votre accès pour entrer dans le Palais AppliMeal.
+           </p>
+           <button onClick={() => setIsVerifyingEmail(false)} className="w-full bg-luxury-bordeaux text-white font-black py-6 rounded-[32px] shadow-xl hover:bg-luxury-charcoal transition-all uppercase tracking-widest text-xs">Retour à la connexion</button>
+        </div>
+      </div>
+    );
+  }
+
   if (!session) {
     return (
-      <div className="min-h-screen bg-luxury-cream p-8 flex flex-col justify-center items-center space-y-12 animate-in fade-in duration-1000">
+      <div className="min-h-screen bg-luxury-cream dark:bg-midnight-base p-8 flex flex-col justify-center items-center space-y-12 animate-in fade-in duration-1000">
         <div className="text-center space-y-4">
-           <ChefHat size={80} className="mx-auto text-luxury-bordeaux mb-4" />
-           <h1 className="text-6xl font-serif font-black text-luxury-charcoal tracking-tighter">AppliMeal</h1>
-           <p className="text-luxury-bordeaux/60 font-medium italic uppercase text-[10px]">L'Excellence au quotidien</p>
+           <ChefHat size={80} className="mx-auto text-luxury-bordeaux dark:text-luxury-gold mb-4" />
+           <h1 className="text-6xl font-serif font-black text-luxury-charcoal dark:text-luxury-cream tracking-tighter">AppliMeal</h1>
+           <p className="text-luxury-bordeaux/60 dark:text-luxury-gold/60 font-medium italic uppercase text-[10px] tracking-[0.3em]">L'Excellence au quotidien</p>
         </div>
-        <div className="w-full max-w-sm space-y-6 bg-white p-10 rounded-[60px] shadow-2xl border border-luxury-gold/10 relative overflow-hidden">
+        <div className="w-full max-w-sm space-y-6 bg-white dark:bg-midnight-surface p-10 rounded-[60px] shadow-2xl border border-luxury-gold/10 relative overflow-hidden">
            <div className="absolute top-0 left-0 w-full h-1.5 bg-luxury-gold/20" />
            <div className="space-y-6">
               <div className="space-y-4">
-                 <div className="relative group"><Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-luxury-gold/40 group-focus-within:text-luxury-gold" size={20} /><input type="email" placeholder="Email Signature" value={email} onChange={e => setEmail(e.target.value)} className="w-full p-5 pl-12 bg-luxury-cream rounded-2xl border-none outline-none ring-1 ring-luxury-gold/10 focus:ring-2 focus:ring-luxury-gold transition-all font-medium text-luxury-charcoal" /></div>
+                 <div className="relative group">
+                    <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-luxury-gold/40 group-focus-within:text-luxury-gold" size={20} />
+                    <input type="email" placeholder="Email Signature" value={email} onChange={e => setEmail(e.target.value)} className="w-full p-5 pl-12 bg-luxury-cream dark:bg-black rounded-2xl border-none outline-none ring-1 ring-luxury-gold/10 focus:ring-2 focus:ring-luxury-gold transition-all font-medium text-luxury-charcoal dark:text-luxury-cream" />
+                 </div>
                  {authMode !== 'forgot' && (
-                   <div className="relative group"><LockIcon className="absolute left-4 top-1/2 -translate-y-1/2 text-luxury-gold/40 group-focus-within:text-luxury-gold" size={20} /><input type="password" placeholder="Moteur de passe" value={password} onChange={e => setPassword(e.target.value)} className="w-full p-5 pl-12 bg-luxury-cream rounded-2xl border-none outline-none ring-1 ring-luxury-gold/10 focus:ring-2 focus:ring-luxury-gold transition-all font-medium text-luxury-charcoal" /></div>
+                   <div className="relative group">
+                      <LockIcon className="absolute left-4 top-1/2 -translate-y-1/2 text-luxury-gold/40 group-focus-within:text-luxury-gold" size={20} />
+                      <input type="password" placeholder="Mot de passe" value={password} onChange={e => setPassword(e.target.value)} className="w-full p-5 pl-12 bg-luxury-cream dark:bg-black rounded-2xl border-none outline-none ring-1 ring-luxury-gold/10 focus:ring-2 focus:ring-luxury-gold transition-all font-medium text-luxury-charcoal dark:text-luxury-cream" />
+                   </div>
                  )}
               </div>
-              {authMode === 'signin' && (<div className="flex justify-end pr-2"><button onClick={() => setAuthMode('forgot')} className="text-[10px] font-black text-luxury-gold/60 uppercase tracking-widest hover:text-luxury-gold transition-colors">Mot de passe oublié ?</button></div>)}
+              {authMode === 'signin' && (<div className="flex justify-end pr-2"><button onClick={() => setAuthMode('forgot')} className="text-[10px] font-black text-luxury-gold/60 dark:text-luxury-gold/40 uppercase tracking-widest hover:text-luxury-gold transition-colors">Mot de passe oublié ?</button></div>)}
               <button onClick={handleAuth} disabled={isAppLoading} className="w-full bg-luxury-bordeaux text-white font-black py-6 rounded-[32px] shadow-xl hover:bg-luxury-charcoal transition-all">
                 {isAppLoading ? <Loader2 className="animate-spin mx-auto" /> : authMode === 'signin' ? "Accéder au Palais" : authMode === 'signup' ? "Créer ma Signature" : "Réinitialiser"}
               </button>
               {authMode !== 'forgot' && (
                 <>
                   <div className="relative flex items-center py-2"><div className="flex-grow border-t border-luxury-gold/10"></div><span className="flex-shrink mx-4 text-luxury-gold/40 text-[10px] font-black uppercase tracking-widest">Ou</span><div className="flex-grow border-t border-luxury-gold/10"></div></div>
-                  <button onClick={signInWithGoogle} className="w-full bg-white border border-luxury-gold/20 text-luxury-charcoal font-bold py-5 rounded-[28px] flex items-center justify-center gap-4 shadow-sm hover:bg-luxury-cream transition-all group active:scale-95"><img src="https://www.google.com/favicon.ico" className="w-5 h-5 grayscale group-hover:grayscale-0 transition-all" alt="Google" /><span className="text-sm tracking-tight uppercase">Continuer avec Google</span></button>
+                  <button onClick={signInWithGoogle} className="w-full bg-white dark:bg-black border border-luxury-gold/20 text-luxury-charcoal dark:text-luxury-cream font-bold py-5 rounded-[28px] flex items-center justify-center gap-4 shadow-sm hover:bg-luxury-cream dark:hover:bg-midnight-base transition-all group"><img src="https://www.google.com/favicon.ico" className="w-5 h-5 grayscale group-hover:grayscale-0 transition-all" alt="Google" /><span className="text-xs tracking-widest uppercase">Signature Google</span></button>
                 </>
               )}
            </div>
-           <p className="text-center"><button onClick={() => setAuthMode(authMode === 'signin' ? 'signup' : 'signin')} className="text-xs font-black text-luxury-gold uppercase tracking-[0.2em] hover:text-luxury-bordeaux transition-colors border-b border-luxury-gold/20 pb-1">{authMode === 'signin' ? "Nouveau Membre ? S'inscrire" : "Déjà Membre ? Se connecter"}</button></p>
+           <p className="text-center"><button onClick={() => setAuthMode(authMode === 'signin' ? 'signup' : 'signin')} className="text-[9px] font-black text-luxury-gold uppercase tracking-[0.3em] hover:text-luxury-bordeaux transition-colors border-b border-luxury-gold/20 pb-1">{authMode === 'signin' ? "Nouveau Membre ? S'inscrire" : "Déjà Membre ? Se connecter"}</button></p>
         </div>
       </div>
     );
@@ -197,59 +244,59 @@ function App() {
 
   if (!hasOnboarded) {
     return (
-      <div className="min-h-screen bg-luxury-cream p-6 flex flex-col justify-center animate-in fade-in duration-500">
-        <div className="max-w-md mx-auto w-full bg-white p-10 rounded-[60px] shadow-2xl border border-luxury-gold/10 relative overflow-hidden">
+      <div className="min-h-screen bg-luxury-cream dark:bg-midnight-base p-6 flex flex-col justify-center animate-in fade-in duration-500">
+        <div className="max-w-md mx-auto w-full bg-white dark:bg-midnight-surface p-10 rounded-[60px] shadow-2xl border border-luxury-gold/10 relative overflow-hidden text-luxury-charcoal dark:text-luxury-cream">
           <div className="absolute top-0 left-0 h-1.5 bg-luxury-gold transition-all duration-500" style={{ width: `${(onboardingStep / 4) * 100}%` }}></div>
           {onboardingStep === 1 && (
             <div className="space-y-8 animate-in slide-in-from-right duration-300">
-              <div className="space-y-2 text-center sm:text-left"><h2 className="text-luxury-gold font-black uppercase text-[10px] tracking-[0.3em]">Étape 1/4</h2><h1 className="text-3xl font-serif font-black text-luxury-charcoal leading-tight">Profil Physique</h1></div>
+              <div className="space-y-2 text-center sm:text-left"><h2 className="text-luxury-gold font-black uppercase text-[10px] tracking-[0.3em]">Étape 1/4</h2><h1 className="text-3xl font-serif font-black leading-tight">Profil Physique</h1></div>
               <div className="space-y-6">
-                <div className="flex gap-2">{(['MALE', 'FEMALE', 'OTHER'] as const).map(g => (<button key={g} onClick={() => setProfile({...profile, gender: g})} className={cn("flex-1 py-4 rounded-2xl border text-[10px] font-black transition-all", profile.gender === g ? "bg-luxury-bordeaux text-white border-luxury-bordeaux shadow-lg" : "bg-luxury-cream text-luxury-gold border-luxury-gold/10")}>{g === 'MALE' ? 'HOMME' : g === 'FEMALE' ? 'FEMME' : 'AUTRE'}</button>))}</div>
+                <div className="flex gap-2">{(['MALE', 'FEMALE', 'OTHER'] as const).map(g => (<button key={g} onClick={() => setProfile({...profile, gender: g})} className={cn("flex-1 py-4 rounded-2xl border text-[10px] font-black transition-all", profile.gender === g ? "bg-luxury-bordeaux text-white border-luxury-bordeaux shadow-lg" : "bg-luxury-cream dark:bg-black text-luxury-gold border-luxury-gold/10")}>{g === 'MALE' ? 'HOMME' : g === 'FEMALE' ? 'FEMME' : 'AUTRE'}</button>))}</div>
                 <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-1"><span className="text-[10px] font-black text-luxury-gold uppercase tracking-widest pl-2">Âge</span><input type="number" value={profile.age} onChange={e => setProfile({...profile, age: +e.target.value})} className="w-full p-5 bg-luxury-cream rounded-2xl border-none outline-none ring-1 ring-luxury-gold/10 focus:ring-2 focus:ring-luxury-gold" /></div>
-                  <div className="space-y-1"><span className="text-[10px] font-black text-luxury-gold uppercase tracking-widest pl-2">Poids (kg)</span><input type="number" value={profile.weight} onChange={e => setProfile({...profile, weight: +e.target.value})} className="w-full p-5 bg-luxury-cream rounded-2xl border-none outline-none ring-1 ring-luxury-gold/10 focus:ring-2 focus:ring-luxury-gold" /></div>
+                  <div className="space-y-1"><span className="text-[10px] font-black text-luxury-gold uppercase tracking-widest pl-2">Âge</span><input type="number" value={profile.age} onChange={e => setProfile({...profile, age: +e.target.value})} className="w-full p-5 bg-luxury-cream dark:bg-black rounded-2xl border-none outline-none ring-1 ring-luxury-gold/10 focus:ring-2 focus:ring-luxury-gold" /></div>
+                  <div className="space-y-1"><span className="text-[10px] font-black text-luxury-gold uppercase tracking-widest pl-2">Poids (kg)</span><input type="number" value={profile.weight} onChange={e => setProfile({...profile, weight: +e.target.value})} className="w-full p-5 bg-luxury-cream dark:bg-black rounded-2xl border-none outline-none ring-1 ring-luxury-gold/10 focus:ring-2 focus:ring-luxury-gold" /></div>
                 </div>
-                <div className="space-y-1"><span className="text-[10px] font-black text-luxury-gold uppercase tracking-widest pl-2">Taille (cm)</span><input type="number" value={profile.height} onChange={e => setProfile({...profile, height: +e.target.value})} className="w-full p-5 bg-luxury-cream rounded-2xl border-none outline-none ring-1 ring-luxury-gold/10 focus:ring-2 focus:ring-luxury-gold" /></div>
+                <div className="space-y-1"><span className="text-[10px] font-black text-luxury-gold uppercase tracking-widest pl-2">Taille (cm)</span><input type="number" value={profile.height} onChange={e => setProfile({...profile, height: +e.target.value})} className="w-full p-5 bg-luxury-cream dark:bg-black rounded-2xl border-none outline-none ring-1 ring-luxury-gold/10 focus:ring-2 focus:ring-luxury-gold" /></div>
               </div>
               <button onClick={() => setOnboardingStep(2)} className="w-full bg-luxury-bordeaux text-white font-black py-6 rounded-[28px] shadow-xl hover:bg-luxury-charcoal transition-all">Suivant</button>
             </div>
           )}
           {onboardingStep === 2 && (
             <div className="space-y-8 animate-in slide-in-from-right duration-300">
-              <div className="space-y-2"><h2 className="text-luxury-gold font-black uppercase text-[10px] tracking-[0.3em]">Étape 2/4</h2><h1 className="text-3xl font-serif font-black text-luxury-charcoal leading-tight">Objectif & Sport</h1></div>
+              <div className="space-y-2 text-center sm:text-left"><h2 className="text-luxury-gold font-black uppercase text-[10px] tracking-[0.3em]">Étape 2/4</h2><h1 className="text-3xl font-serif font-black leading-tight">Objectif & Sport</h1></div>
               <div className="space-y-4">
-                {(['WEIGHT_LOSS', 'MAINTENANCE', 'MUSCLE_GAIN'] as const).map(goal => (<button key={goal} onClick={() => setProfile({...profile, goal})} className={cn("w-full p-6 rounded-[32px] border-2 flex justify-between items-center transition-all", profile.goal === goal ? "border-luxury-gold bg-luxury-cream" : "border-gray-50 bg-white")}><span className="font-black text-luxury-charcoal uppercase text-xs">{goal === 'WEIGHT_LOSS' ? 'Perte de Poids' : goal === 'MAINTENANCE' ? 'Maintien' : 'Prise de Masse'}</span><CheckCircle2 className={cn("transition-all", profile.goal === goal ? "text-luxury-gold" : "text-gray-100")} /></button>))}
+                {(['WEIGHT_LOSS', 'MAINTENANCE', 'MUSCLE_GAIN'] as const).map(goal => (<button key={goal} onClick={() => setProfile({...profile, goal})} className={cn("w-full p-6 rounded-[32px] border-2 flex justify-between items-center transition-all", profile.goal === goal ? "border-luxury-gold bg-luxury-cream dark:bg-black" : "border-gray-50 dark:border-black/50 bg-white dark:bg-black/20")}><span className="font-black uppercase text-xs">{goal === 'WEIGHT_LOSS' ? 'Perte de Poids' : goal === 'MAINTENANCE' ? 'Maintien' : 'Prise de Masse'}</span><CheckCircle2 className={cn("transition-all", profile.goal === goal ? "text-luxury-gold" : "text-gray-100 dark:text-gray-800")} /></button>))}
                 <div className="grid grid-cols-2 gap-2 mt-4">
-                   {(['HOME', 'GYM'] as const).map(loc => (<button key={loc} onClick={() => setProfile({...profile, workoutLocation: loc})} className={cn("py-4 rounded-2xl border text-[10px] font-black uppercase transition-all", profile.workoutLocation === loc ? "bg-luxury-gold text-white" : "bg-luxury-cream text-luxury-gold border-luxury-gold/10")}>{loc === 'GYM' ? 'En Salle' : 'Maison'}</button>))}
+                   {(['HOME', 'GYM'] as const).map(loc => (<button key={loc} onClick={() => setProfile({...profile, workoutLocation: loc})} className={cn("py-4 rounded-2xl border text-[10px] font-black uppercase transition-all", profile.workoutLocation === loc ? "bg-luxury-gold text-white" : "bg-luxury-cream dark:bg-black text-luxury-gold border-luxury-gold/10")}>{loc === 'GYM' ? 'En Salle' : 'Maison'}</button>))}
                 </div>
-                <div className="space-y-1 mt-4"><span className="text-[10px] font-black text-luxury-gold uppercase tracking-widest pl-2">Fréquence</span><div className="flex justify-between items-center bg-luxury-cream p-4 rounded-2xl"><button onClick={() => setProfile({...profile, trainingFrequency: Math.max(1, profile.trainingFrequency - 1)})} className="p-2 bg-white rounded-xl text-luxury-bordeaux"><Minus size={20}/></button><span className="text-3xl font-black text-luxury-charcoal">{profile.trainingFrequency}</span><button onClick={() => setProfile({...profile, trainingFrequency: Math.min(7, profile.trainingFrequency + 1)})} className="p-2 bg-white rounded-xl text-luxury-gold"><Plus size={20}/></button></div></div>
+                <div className="space-y-1 mt-4"><span className="text-[10px] font-black text-luxury-gold uppercase tracking-widest pl-2">Fréquence</span><div className="flex justify-between items-center bg-luxury-cream dark:bg-black p-4 rounded-2xl"><button onClick={() => setProfile({...profile, trainingFrequency: Math.max(1, profile.trainingFrequency - 1)})} className="p-2 bg-white dark:bg-midnight-surface rounded-xl text-luxury-bordeaux"><Minus size={20}/></button><span className="text-3xl font-black">{profile.trainingFrequency}</span><button onClick={() => setProfile({...profile, trainingFrequency: Math.min(7, profile.trainingFrequency + 1)})} className="p-2 bg-white dark:bg-midnight-surface rounded-xl text-luxury-gold"><Plus size={20}/></button></div></div>
               </div>
-              <div className="flex gap-4"><button onClick={() => setOnboardingStep(1)} className="flex-1 bg-luxury-cream text-luxury-gold font-black py-6 rounded-[28px] text-[10px] uppercase tracking-widest">Retour</button><button onClick={() => setOnboardingStep(3)} className="flex-[2] bg-luxury-bordeaux text-white font-black py-6 rounded-[28px] shadow-xl hover:bg-luxury-charcoal transition-all">Suivant</button></div>
+              <div className="flex gap-4"><button onClick={() => setOnboardingStep(1)} className="flex-1 bg-luxury-cream dark:bg-black text-luxury-gold font-black py-6 rounded-[28px] text-[10px] uppercase tracking-widest">Retour</button><button onClick={() => setOnboardingStep(3)} className="flex-[2] bg-luxury-bordeaux text-white font-black py-6 rounded-[28px] shadow-xl hover:bg-luxury-charcoal transition-all">Suivant</button></div>
             </div>
           )}
           {onboardingStep === 3 && (
             <div className="space-y-8 animate-in slide-in-from-right duration-300">
-              <div className="space-y-2"><h2 className="text-luxury-gold font-black uppercase text-[10px] tracking-[0.3em]">Étape 3/4</h2><h1 className="text-3xl font-serif font-black text-luxury-charcoal leading-tight">Budget & Mode</h1></div>
+              <div className="space-y-2 text-center sm:text-left"><h2 className="text-luxury-gold font-black uppercase text-[10px] tracking-[0.3em]">Étape 3/4</h2><h1 className="text-3xl font-serif font-black leading-tight">Budget & Mode</h1></div>
               <div className="space-y-6">
                 <div className="space-y-1">
                   <span className="text-[10px] font-black text-luxury-gold uppercase tracking-widest pl-2">Budget par Repas</span>
-                  <select value={profile.budget} onChange={e => setProfile({...profile, budget: e.target.value as any})} className="w-full p-5 bg-luxury-cream rounded-2xl border-none outline-none ring-1 ring-luxury-gold/10 font-bold text-luxury-charcoal"><option value="LOW">Économique (Étudiant)</option><option value="MEDIUM">Standard</option><option value="HIGH">Gourmet / Prestige</option></select>
+                  <select value={profile.budget} onChange={e => setProfile({...profile, budget: e.target.value as any})} className="w-full p-5 bg-luxury-cream dark:bg-black rounded-2xl border-none outline-none ring-1 ring-luxury-gold/10 font-bold text-luxury-charcoal dark:text-luxury-cream"><option value="LOW">Économique (Étudiant)</option><option value="MEDIUM">Standard</option><option value="HIGH">Gourmet / Prestige</option></select>
                 </div>
                 <div className="space-y-1">
                   <span className="text-[10px] font-black text-luxury-gold uppercase tracking-widest pl-2">Temps de Cuisine</span>
-                  <select value={profile.prepTime} onChange={e => setProfile({...profile, prepTime: e.target.value as any})} className="w-full p-5 bg-luxury-cream rounded-2xl border-none outline-none ring-1 ring-luxury-gold/10 font-bold text-luxury-charcoal"><option value="EXPRESS">Express (&lt; 15 min)</option><option value="MEDIUM">Normal (~ 30 min)</option><option value="CHEF">Chef (45 min +)</option></select>
+                  <select value={profile.prepTime} onChange={e => setProfile({...profile, prepTime: e.target.value as any})} className="w-full p-5 bg-luxury-cream dark:bg-black rounded-2xl border-none outline-none ring-1 ring-luxury-gold/10 font-bold text-luxury-charcoal dark:text-luxury-cream"><option value="EXPRESS">Express (&lt; 15 min)</option><option value="MEDIUM">Normal (~ 30 min)</option><option value="CHEF">Chef (45 min +)</option></select>
                 </div>
               </div>
-              <div className="flex gap-4"><button onClick={() => setOnboardingStep(2)} className="flex-1 bg-luxury-cream text-luxury-gold font-black py-6 rounded-[28px] text-[10px] uppercase tracking-widest">Retour</button><button onClick={() => setOnboardingStep(4)} className="flex-[2] bg-luxury-bordeaux text-white font-black py-6 rounded-[28px] shadow-xl hover:bg-luxury-charcoal transition-all">Suivant</button></div>
+              <div className="flex gap-4"><button onClick={() => setOnboardingStep(2)} className="flex-1 bg-luxury-cream dark:bg-black text-luxury-gold font-black py-6 rounded-[28px] text-[10px] uppercase tracking-widest">Retour</button><button onClick={() => setOnboardingStep(4)} className="flex-[2] bg-luxury-bordeaux text-white font-black py-6 rounded-[28px] shadow-xl hover:bg-luxury-charcoal transition-all">Suivant</button></div>
             </div>
           )}
           {onboardingStep === 4 && (
             <div className="space-y-8 animate-in slide-in-from-right duration-300">
-              <div className="space-y-2 text-center"><h2 className="text-luxury-gold font-black uppercase text-[10px] tracking-[0.3em]">Étape 4/4</h2><h1 className="text-3xl font-serif font-black text-luxury-charcoal leading-tight">Visualisation</h1></div>
-              <div className="bg-luxury-cream p-10 rounded-[48px] flex flex-col items-center space-y-4 border border-luxury-gold/10 shadow-inner">
+              <div className="space-y-2 text-center"><h2 className="text-luxury-gold font-black uppercase text-[10px] tracking-[0.3em]">Étape 4/4</h2><h1 className="text-3xl font-serif font-black leading-tight">Visualisation</h1></div>
+              <div className="bg-luxury-cream dark:bg-black p-10 rounded-[48px] flex flex-col items-center space-y-4 border border-luxury-gold/10 shadow-inner">
                 <span className="text-[10px] font-black text-luxury-gold uppercase tracking-[0.4em]">Poids Cible (kg)</span>
-                <input type="number" value={profile.targetWeight} onChange={e => setProfile({...profile, targetWeight: +e.target.value})} className="text-7xl font-black bg-transparent text-center text-luxury-bordeaux outline-none w-full" />
-                <div className="bg-white px-6 py-2 rounded-full border border-luxury-gold/10 text-[10px] font-black text-luxury-gold uppercase tracking-widest animate-pulse">Objectif : {Math.abs(profile.targetWeight - profile.weight)} kg</div>
+                <input type="number" value={profile.targetWeight} onChange={e => setProfile({...profile, targetWeight: +e.target.value})} className="text-7xl font-black bg-transparent text-center text-luxury-bordeaux dark:text-luxury-gold outline-none w-full" />
+                <div className="bg-white dark:bg-midnight-surface px-6 py-2 rounded-full border border-luxury-gold/10 text-[10px] font-black text-luxury-gold uppercase tracking-widest animate-pulse">Objectif : {Math.abs(profile.targetWeight - profile.weight)} kg</div>
               </div>
               <button onClick={completeOnboarding} disabled={isAppLoading} className="w-full bg-luxury-gold text-white font-black py-6 rounded-[28px] shadow-xl shadow-luxury-gold/30 hover:bg-luxury-charcoal transition-all uppercase tracking-widest text-xs">{isAppLoading ? <Loader2 className="animate-spin mx-auto" /> : "Générer mon Destin Elite"}</button>
             </div>
@@ -268,7 +315,7 @@ function App() {
         <div className="bg-white dark:bg-midnight-surface p-10 rounded-b-[60px] shadow-2xl space-y-10 animate-in slide-in-from-top duration-700 relative overflow-hidden">
           <div className="absolute top-0 right-0 w-64 h-64 bg-luxury-gold/5 rounded-full -translate-y-1/2 translate-x-1/2"></div>
           
-          {/* LUXURY INTEGRATED HEADER */}
+          {/* HEADER ELITE INTEGRÉ */}
           <div className="flex justify-between items-start relative z-10">
             <div className="space-y-1">
               <div className="flex items-center gap-2 text-luxury-gold font-black uppercase text-[10px] tracking-[0.3em]">
@@ -278,10 +325,10 @@ function App() {
             </div>
             
             <div className="flex gap-2">
-              <button onClick={() => setIsDarkMode(!isDarkMode)} className="bg-luxury-cream dark:bg-black p-3 rounded-2xl text-luxury-gold hover:scale-110 transition-all shadow-sm border border-luxury-gold/5">
+              <button onClick={() => setIsDarkMode(!isDarkMode)} className="bg-luxury-cream dark:bg-black p-3 rounded-2xl text-luxury-gold hover:scale-110 transition-all shadow-sm border border-luxury-gold/10">
                 {isDarkMode ? <Sun size={20}/> : <Moon size={20}/>}
               </button>
-              <button onClick={() => { signOut(); setSession(null); }} className="bg-luxury-cream dark:bg-black p-3 rounded-2xl text-luxury-bordeaux hover:bg-luxury-bordeaux hover:text-white transition-all shadow-sm border border-luxury-gold/5">
+              <button onClick={() => { signOut(); setSession(null); }} className="bg-luxury-cream dark:bg-black p-3 rounded-2xl text-luxury-bordeaux hover:bg-luxury-bordeaux hover:text-white transition-all shadow-sm border border-luxury-gold/10">
                 <LogOut size={20}/>
               </button>
             </div>
@@ -319,7 +366,7 @@ function App() {
       <main className="p-6 max-w-lg mx-auto space-y-8 mt-4">
         {activeTab === 'studio' && (
           <div className="space-y-10 animate-in fade-in">
-             <div className="space-y-2 px-2"><h3 className="text-luxury-gold font-black uppercase text-[10px] tracking-[0.4em]">Elite Training</h3><h2 className="text-4xl font-serif font-black leading-tight tracking-tight">Studio Privé</h2></div>
+             <div className="space-y-2 px-2 text-center sm:text-left"><h3 className="text-luxury-gold font-black uppercase text-[10px] tracking-[0.4em]">Elite Training</h3><h2 className="text-4xl font-serif font-black leading-tight tracking-tight">Studio Privé</h2></div>
              <div className="space-y-6">
                 {WORKOUT_DATABASE.filter(w => w.location === profile.workoutLocation).map(w => (
                   <div key={w.id} onClick={() => setActiveWorkout(w)} className="bg-white dark:bg-midnight-surface p-8 rounded-[56px] shadow-2xl border border-luxury-gold/5 flex justify-between items-center group cursor-pointer hover:border-luxury-gold transition-all relative overflow-hidden text-luxury-charcoal dark:text-luxury-cream">
@@ -362,7 +409,7 @@ function App() {
              <div className="space-y-2 px-2"><h3 className="text-luxury-gold font-black uppercase text-[10px] tracking-[0.4em]">Réserve Prestige</h3><h2 className="text-2xl font-serif font-black tracking-tight">Ma Liste</h2></div>
              <div className="bg-luxury-charcoal dark:bg-black text-white p-8 rounded-[56px] shadow-2xl border border-luxury-gold/20 relative overflow-hidden">
                 <div className="flex justify-between items-end mb-8 relative z-10"><div><p className="text-[10px] font-black uppercase tracking-widest text-luxury-gold/60 mb-1">Total de l'Excellence</p><p className="text-5xl font-serif font-black tracking-tighter">48.20€</p></div><div className="bg-luxury-gold/10 p-5 rounded-[28px]"><ShoppingCart className="text-luxury-gold" size={32}/></div></div>
-                <a href={getDriveLink([])} target="_blank" rel="noreferrer" className="w-full bg-luxury-gold text-white font-black py-5 rounded-[28px] flex items-center justify-center gap-3 hover:bg-luxury-gold/90 transition-all relative z-10 shadow-xl shadow-luxury-gold/20 text-sm uppercase tracking-widest">Commander au Drive Elite <ExternalLink size={18} /></a>
+                <a href={getDriveLink([])} target="_blank" rel="noreferrer" className="w-full bg-luxury-gold text-white font-black py-5 rounded-[28px] flex items-center justify-center gap-3 hover:bg-luxury-gold/90 transition-all relative z-10 shadow-xl shadow-luxury-gold/20 text-xs uppercase tracking-widest">Commander au Drive Elite <ExternalLink size={18} /></a>
              </div>
              {Object.entries(shoppingList).map(([cat, items]) => (
                <div key={cat} className="space-y-4">
@@ -389,10 +436,10 @@ function App() {
         {activeTab === 'progress' && (
           <div className="space-y-10 animate-in fade-in">
              <div className="bg-white dark:bg-midnight-surface p-10 rounded-[56px] shadow-2xl border border-luxury-gold/5 text-luxury-charcoal dark:text-luxury-cream">
-                <div className="flex justify-between items-center mb-10"><h3 className="text-luxury-gold font-black uppercase text-[10px] tracking-[0.4em] flex items-center gap-2"><TrendingUp size={18}/> Courbe Prestige</h3><div className="bg-luxury-cream dark:bg-black px-4 py-1 rounded-full text-[10px] font-black text-luxury-gold shadow-sm border border-luxury-gold/5">OBJECTIF {profile.targetWeight} KG</div></div>
+                <div className="flex justify-between items-center mb-10"><h3 className="text-luxury-gold font-black uppercase text-[10px] tracking-[0.4em] flex items-center gap-2"><TrendingUp size={18}/> Courbe Prestige</h3><div className="bg-luxury-cream dark:bg-black px-4 py-1 rounded-full text-[10px] font-black text-luxury-gold shadow-sm border border-luxury-gold/10">OBJECTIF {profile.targetWeight} KG</div></div>
                 <div className="h-64 w-full"><ResponsiveContainer width="100%" height="100%"><AreaChart data={stats.weightHistory}><defs><linearGradient id="gW" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#D4AF37" stopOpacity={0.3}/><stop offset="95%" stopColor="#D4AF37" stopOpacity={0}/></linearGradient></defs><CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f5f5f5" opacity={0.1} /><XAxis dataKey="date" axisLine={false} tickLine={false} tick={{fontSize: 10, fontWeight: 'bold', fill: '#D4AF37'}} /><Tooltip contentStyle={{borderRadius: '24px', border: 'none', boxShadow: '0 20px 40px -10px rgba(0,0,0,0.1)', backgroundColor: isDarkMode ? '#141414' : '#fff', color: '#D4AF37'}} /><Area type="monotone" dataKey="weight" stroke="#D4AF37" strokeWidth={5} fill="url(#gW)" /></AreaChart></ResponsiveContainer></div>
              </div>
-             <div className="bg-luxury-charcoal dark:bg-black p-10 rounded-[60px] shadow-2xl text-white space-y-8 relative overflow-hidden">
+             <div className="bg-luxury-charcoal dark:bg-black p-10 rounded-[60px] shadow-2xl text-white space-y-8 relative overflow-hidden border border-luxury-gold/10">
                 <h3 className="text-luxury-gold font-black uppercase text-[10px] tracking-[0.4em] flex items-center gap-3 relative z-10"><Award size={20}/> Succès & Distinction</h3>
                 <div className="grid grid-cols-2 gap-5 relative z-10">
                    {stats.badges.map(b => <div key={b} className="bg-white/5 p-8 rounded-[40px] border border-white/10 flex flex-col items-center gap-4 text-center hover:bg-white/10 transition-all group hover:scale-110 transition-transform"><div className="bg-luxury-gold/20 p-5 rounded-[24px] text-luxury-gold group-pulse"><Sparkles size={32}/></div><p className="text-[10px] font-black uppercase tracking-widest leading-relaxed">{b.replace('_', ' ')}</p></div>)}
@@ -403,7 +450,7 @@ function App() {
       </main>
 
       {/* FLOATING CONCIERGE BUTTON */}
-      {!isConciergeOpen && !selectedRecipe && !activeWorkout && !aiResult && (
+      {!isConciergeOpen && !selectedRecipe && !activeWorkout && !aiResult && !isVerifyingEmail && (
         <button onClick={() => setIsConciergeOpen(true)} className="fixed bottom-36 right-6 z-[60] bg-luxury-gold text-white p-5 rounded-[28px] shadow-2xl shadow-luxury-gold/40 hover:scale-110 transition-all animate-bounce">
           <MessageSquare size={28} />
         </button>
@@ -413,7 +460,7 @@ function App() {
       {isConciergeOpen && (
         <div className="fixed inset-x-4 bottom-32 z-[70] bg-white dark:bg-midnight-surface rounded-[48px] shadow-[0_40px_100px_-20px_rgba(0,0,0,0.6)] border border-luxury-gold/20 flex flex-col overflow-hidden animate-in slide-in-from-bottom duration-500" style={{maxHeight: '60vh'}}>
            <div className="bg-luxury-charcoal dark:bg-black p-6 flex justify-between items-center border-b border-luxury-gold/10">
-              <div className="flex items-center gap-3 text-luxury-gold"><Sparkles size={20}/><span className="font-serif font-black tracking-widest uppercase">Concierge Elite</span></div>
+              <div className="flex items-center gap-3 text-luxury-gold"><Sparkles size={20}/><span className="font-serif font-black tracking-widest uppercase text-xs">Concierge Elite</span></div>
               <button onClick={() => setIsConciergeOpen(false)} className="text-white/50 hover:text-white transition-colors"><X/></button>
            </div>
            <div className="flex-1 p-6 overflow-y-auto space-y-6 bg-luxury-cream/30 dark:bg-black/30">
@@ -452,7 +499,7 @@ function App() {
       {selectedRecipe && (
         <div className="fixed inset-0 z-[150] bg-luxury-cream dark:bg-midnight-base overflow-y-auto animate-in slide-in-from-bottom duration-700">
            <div className="p-10 max-w-lg mx-auto space-y-12 pb-48 text-luxury-charcoal dark:text-luxury-cream">
-              <button onClick={() => {setSelectedRecipe(null); setPortions(1);}} className="bg-white dark:bg-midnight-surface p-5 rounded-[24px] shadow-xl text-luxury-bordeaux hover:rotate-90 transition-all shadow-luxury-gold/10 border border-luxury-gold/5"><X size={24}/></button>
+              <button onClick={() => {setSelectedRecipe(null); setPortions(1);}} className="bg-white dark:bg-midnight-surface p-5 rounded-[24px] shadow-xl text-luxury-bordeaux hover:rotate-90 transition-all shadow-luxury-gold/10 border border-luxury-gold/10"><X size={24}/></button>
               <div className="space-y-6 text-center">
                  <div className="bg-luxury-gold/10 inline-block px-6 py-2 rounded-full text-luxury-gold text-[10px] font-black uppercase tracking-[0.4em]">Signature Gastronomique</div>
                  <h2 className="text-5xl font-serif font-black leading-[1.1] tracking-tighter">{selectedRecipe.name}</h2>
@@ -462,9 +509,9 @@ function App() {
               <div className="bg-white dark:bg-midnight-surface p-6 rounded-[40px] shadow-sm border border-luxury-gold/10 flex items-center justify-between px-10">
                  <span className="text-xs font-black uppercase tracking-widest text-gray-400">Portions</span>
                  <div className="flex items-center gap-6">
-                    <button onClick={() => setPortions(p => Math.max(1, p-1))} className="p-3 bg-luxury-cream dark:bg-black rounded-full text-luxury-bordeaux border border-luxury-gold/5"><Minus size={20}/></button>
+                    <button onClick={() => setPortions(p => Math.max(1, p-1))} className="p-3 bg-luxury-cream dark:bg-black rounded-full text-luxury-bordeaux border border-luxury-gold/10"><Minus size={20}/></button>
                     <span className="text-4xl font-black w-10 text-center">{portions}</span>
-                    <button onClick={() => setPortions(p => p+1)} className="p-3 bg-luxury-cream dark:bg-black rounded-full text-luxury-gold border border-luxury-gold/5"><Plus size={20}/></button>
+                    <button onClick={() => setPortions(p => p+1)} className="p-3 bg-luxury-cream dark:bg-black rounded-full text-luxury-gold border border-luxury-gold/10"><Plus size={20}/></button>
                  </div>
               </div>
 
@@ -481,20 +528,20 @@ function App() {
                             <span className="font-bold text-xl block">{ing.name}</span>
                             <button onClick={() => substituteIngredient(ing.name)} className="text-[9px] font-black uppercase tracking-widest text-luxury-gold/50 hover:text-luxury-gold flex items-center gap-1 mt-1 opacity-0 group-hover:opacity-100 transition-opacity"><Sparkles size={10}/> Remplacer</button>
                          </div>
-                         <span className="text-sm font-black text-luxury-gold bg-luxury-cream dark:bg-black px-4 py-2 rounded-xl border border-luxury-gold/5">{ing.quantity * portions} {ing.unit}</span>
+                         <span className="text-sm font-black text-luxury-gold bg-luxury-cream dark:bg-black px-4 py-2 rounded-xl border border-luxury-gold/10">{ing.quantity * portions} {ing.unit}</span>
                       </div>
                     ))}
                  </div>
               </div>
            </div>
-           <div className="fixed bottom-0 left-0 right-0 p-10 bg-gradient-to-t from-luxury-cream dark:from-midnight-base via-luxury-cream/90 dark:via-midnight-base/90 to-transparent z-[160]"><button onClick={() => { setProgress(prev => ({...prev, consumedCalories: prev.consumedCalories + (selectedRecipe.calories * portions) })); setSelectedRecipe(null); setPortions(1); setProfile(p => ({...p, xp: p.xp + 20})); toast.success('Expérience Gastronomique validée. +20 XP'); }} className="w-full bg-luxury-bordeaux text-white font-black py-8 rounded-[40px] shadow-[0_30px_60px_-15px_rgba(74,4,4,0.4)] hover:bg-luxury-charcoal transition-all uppercase tracking-[0.4em] text-sm">Consommer cette Excellence</button></div>
+           <div className="fixed bottom-0 left-0 right-0 p-10 bg-gradient-to-t from-luxury-cream dark:from-midnight-base via-luxury-cream/90 dark:via-midnight-base/90 to-transparent z-[160]"><button onClick={() => { setProgress(prev => ({...prev, consumedCalories: prev.consumedCalories + (selectedRecipe.calories * portions) })); setSelectedRecipe(null); setPortions(1); setProfile(p => ({...p, xp: p.xp + 20})); toast.success('Expérience Gastronomique validée. +20 XP'); }} className="w-full bg-luxury-bordeaux text-white font-black py-8 rounded-[40px] shadow-[0_30px_60px_-15px_rgba(74,4,4,0.4)] hover:bg-luxury-charcoal transition-all uppercase tracking-[0.4em] text-sm shadow-luxury-gold/20">Consommer cette Excellence</button></div>
         </div>
       )}
 
       {activeWorkout && (
         <div className="fixed inset-0 z-[150] bg-luxury-cream dark:bg-midnight-base overflow-y-auto animate-in slide-in-from-bottom duration-700">
            <div className="p-10 max-w-lg mx-auto space-y-12 pb-48 text-luxury-charcoal dark:text-luxury-cream">
-              <button onClick={() => setActiveWorkout(null)} className="bg-white dark:bg-midnight-surface p-5 rounded-[24px] shadow-xl text-luxury-bordeaux hover:rotate-90 transition-all border border-luxury-gold/5"><X size={24}/></button>
+              <button onClick={() => setActiveWorkout(null)} className="bg-white dark:bg-midnight-surface p-5 rounded-[24px] shadow-xl text-luxury-bordeaux hover:rotate-90 transition-all border border-luxury-gold/10"><X size={24}/></button>
               <div className="space-y-4 text-center">
                  <div className="bg-luxury-gold/10 inline-block px-6 py-2 rounded-full text-luxury-gold text-[10px] font-black uppercase tracking-[0.4em]">Séance Privée</div>
                  <h2 className="text-5xl font-serif font-black leading-tight tracking-tighter">{activeWorkout.title}</h2>
@@ -508,11 +555,11 @@ function App() {
                             <span className="text-[10px] font-black text-luxury-gold uppercase tracking-widest">Exercice {i+1}</span>
                             <h3 className="text-2xl font-serif font-black">{ex.name}</h3>
                          </div>
-                         <div className="bg-luxury-cream dark:bg-black p-4 rounded-3xl text-luxury-bordeaux dark:text-luxury-gold font-black border border-luxury-gold/5">{ex.sets} x {ex.reps}</div>
+                         <div className="bg-luxury-cream dark:bg-black p-4 rounded-3xl text-luxury-bordeaux dark:text-luxury-gold font-black border border-luxury-gold/10">{ex.sets} x {ex.reps}</div>
                       </div>
                       <div className="space-y-3">
                          <span className="text-[10px] font-black text-luxury-gold uppercase tracking-widest pl-2">Charge utilisée (KG)</span>
-                         <input type="text" placeholder="Entrez votre poids..." className="w-full p-5 bg-luxury-cream dark:bg-black rounded-2xl border-none outline-none ring-1 ring-luxury-gold/10 focus:ring-2 focus:ring-luxury-gold font-black text-luxury-charcoal dark:text-white" />
+                         <input type="text" placeholder="Entrez votre poids..." className="w-full p-5 bg-luxury-cream dark:bg-black rounded-2xl border-none outline-none ring-1 ring-luxury-gold/10 focus:ring-2 focus:ring-luxury-gold font-black text-luxury-charcoal dark:text-luxury-cream" />
                       </div>
                    </div>
                  ))}
@@ -525,10 +572,10 @@ function App() {
       {aiResult && (
         <div className="fixed inset-0 z-[200] bg-luxury-charcoal/95 backdrop-blur-2xl flex items-center justify-center p-8 animate-in zoom-in duration-500">
            <div className="bg-white dark:bg-midnight-surface w-full max-w-sm rounded-[64px] p-12 space-y-10 shadow-2xl relative overflow-hidden border border-luxury-gold/20">
-              <div className="flex justify-between items-center relative z-10"><div className="bg-luxury-gold/10 p-5 rounded-[24px] text-luxury-gold animate-bounce shadow-inner"><Sparkles size={32}/></div><button onClick={() => setAIResult(null)}><X className="text-gray-300 dark:text-gray-600" size={24}/></button></div>
+              <div className="flex justify-between items-center relative z-10"><div className="bg-luxury-gold/10 p-5 rounded-[24px] text-luxury-gold animate-bounce shadow-inner border border-luxury-gold/10"><Sparkles size={32}/></div><button onClick={() => setAIResult(null)}><X className="text-gray-300 dark:text-gray-600" size={24}/></button></div>
               <div className="space-y-8 relative z-10">
                 <div className="space-y-3 text-center"><h3 className="text-[10px] font-black text-luxury-gold uppercase tracking-[0.4em] text-center">Vision IA : Excellence détectée</h3><input type="text" value={aiResult.name} onChange={e => setAIResult({...aiResult, name: e.target.value})} className="w-full text-3xl font-serif font-black border-b-2 border-luxury-gold/20 outline-none bg-transparent text-center focus:border-luxury-gold transition-all pb-2 text-luxury-charcoal dark:text-luxury-cream" /></div>
-                <div className="bg-luxury-cream dark:bg-black p-10 rounded-[48px] flex flex-col items-center space-y-2 shadow-inner border border-luxury-gold/5">
+                <div className="bg-luxury-cream dark:bg-black p-10 rounded-[48px] flex flex-col items-center space-y-2 shadow-inner border border-luxury-gold/10">
                   <span className="text-[10px] font-black uppercase text-luxury-gold tracking-[0.3em]">Signature Calorique</span>
                   <div className="flex items-end gap-1"><input type="number" value={aiResult.calories} onChange={e => setAIResult({...aiResult, calories: +e.target.value})} className="w-32 bg-transparent text-center text-6xl font-black text-luxury-bordeaux dark:text-luxury-gold outline-none" /><span className="text-sm font-serif font-black text-luxury-gold/40 mb-2">KCAL</span></div>
                 </div>
