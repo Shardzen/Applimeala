@@ -1,22 +1,19 @@
 import { useState, useEffect, useRef } from 'react';
-import type { UserProfile, NutritionTargets, Recipe, DailyProgress, UserStats, Workout } from './types';
+import type { UserProfile, NutritionTargets, Recipe, DailyProgress } from './types';
 import { calculateNutritionTargets } from './services/nutrition';
-import { aggregateShoppingList } from './services/generator';
 import { saveProfile, getProfile } from './services/profile';
-import { signIn, signUp, signOut, getCurrentUser, signInWithGoogle, resetPassword } from './services/auth';
+import { signIn, signUp, signOut, getCurrentUser, resetPassword } from './services/auth';
 import { analyzeMealImage, askConcierge, type AIResult } from './services/ai';
-import { fetchRecipesFromDB, getDriveLink } from './services/recipeApi';
 import type { User } from '@supabase/supabase-js';
 import { 
   Utensils, ShoppingCart, ChefHat, Camera, TrendingUp, ChevronRight, CheckCircle2,
   Loader2, X, Award, History as HistoryIcon, LogOut, Sparkles,
-  Droplets, Plus, Minus, Dumbbell, Zap, Target, ExternalLink, Mail, Lock as LockIcon,
+  Plus, Minus, Dumbbell, Mail, Lock as LockIcon,
   Moon, Sun, MessageSquare, Inbox
 } from 'lucide-react';
 import { Toaster, toast } from 'sonner';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
-import { XAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area } from 'recharts';
 
 function cn(...inputs: ClassValue[]) { return twMerge(clsx(inputs)); }
 
@@ -49,12 +46,9 @@ function App() {
   const [progress, setProgress] = useState<DailyProgress>({ consumedCalories: 0, consumedProteins: 0, consumedCarbs: 0, consumedFats: 0, waterGlassCount: 0, exerciseCalories: 0 });
   const [dailyPlan, setDailyPlan] = useState<Recipe[]>([]);
   const [selectedRecipe, setSelectedRecipe] = useState<Recipe | null>(null);
-  const [activeWorkout, setActiveWorkout] = useState<Workout | null>(null);
   const [aiResult, setAIResult] = useState<AIResult | null>(null);
-  const [isAILoading, setIsAILoading] = useState(false);
-  const [checkedItems, setCheckedItems] = useState<string[]>([]);
+  const [, setIsAILoading] = useState(false);
   
-  // THEME FIX
   const [isDarkMode, setIsDarkMode] = useState(() => localStorage.getItem('theme') === 'dark');
   const [portions, setPortions] = useState(1);
   const [isConciergeOpen, setIsConciergeOpen] = useState(false);
@@ -83,7 +77,11 @@ function App() {
       if (user) {
         setSession(user);
         const dbProfile = await getProfile(user.id);
-        if (dbProfile) { setProfile(prev => ({...prev, ...dbProfile})); setHasOnboarded(true); handleGenerate(dbProfile); }
+        if (dbProfile) { 
+          setProfile(prev => ({...prev, ...dbProfile})); 
+          setHasOnboarded(true); 
+          handleGenerate(dbProfile); 
+        }
       }
     } finally { setIsAuthLoading(false); }
   };
@@ -92,14 +90,28 @@ function App() {
     if (!email) return toast.error("Entrez votre email.");
     setIsAppLoading(true);
     try {
-      if (authMode === 'signin') { await signIn(email, password); toast.success('Bienvenue.'); await checkUser(); }
-      else if (authMode === 'signup') { await signUp(email, password); setIsVerifyingEmail(true); }
-      else { await resetPassword(email); toast.success('Lien envoyé.'); setAuthMode('signin'); }
-    } catch (e: any) { toast.error(e.message); } finally { setIsAppLoading(false); }
+      if (authMode === 'signin') { 
+        await signIn(email, password); 
+        toast.success('Bienvenue.'); 
+        await checkUser(); 
+      }
+      else if (authMode === 'signup') { 
+        await signUp(email, password); 
+        setIsVerifyingEmail(true); 
+      }
+      else { 
+        await resetPassword(email); 
+        toast.success('Lien envoyé.'); 
+        setAuthMode('signin'); 
+      }
+    } catch (e: any) { 
+      toast.error(e.message); 
+    } finally { 
+      setIsAppLoading(false); 
+    }
   };
 
   const handleGenerate = async (prof = profile) => {
-    const t = calculateNutritionTargets(prof);
     const filtered = INTERNAL_RECIPES.filter(r => r.tags.includes(prof.goal));
     setDailyPlan(filtered.length > 0 ? filtered.slice(0, 3) : INTERNAL_RECIPES);
   };
@@ -117,13 +129,14 @@ function App() {
     if(!chatInput) return;
     setChatMessages(prev => [...prev, {role: 'user', text: chatInput}]);
     setIsChatLoading(true);
-    const q = chatInput; setChatInput('');
-    const answer = await askConcierge(q, profile, remainingCalories);
+    const q = chatInput; 
+    setChatInput('');
+    const remainingCals = (targets?.calories || 0) - progress.consumedCalories + progress.exerciseCalories;
+    const answer = await askConcierge(q, profile, remainingCals);
     setChatMessages(prev => [...prev, {role: 'ai', text: answer}]);
     setIsChatLoading(false);
   };
 
-  const shoppingList = aggregateShoppingList(dailyPlan);
   const remainingCalories = (targets?.calories || 0) - progress.consumedCalories + progress.exerciseCalories;
 
   if (isAuthLoading) return <div className="h-screen bg-theme flex items-center justify-center"><Loader2 className="animate-spin text-luxury-gold" size={48} /></div>;
@@ -133,7 +146,7 @@ function App() {
       <div className="min-h-screen bg-theme p-8 flex flex-col justify-center items-center text-center space-y-10 animate-in fade-in">
         <div className="bg-surface p-12 rounded-[60px] shadow-2xl border border-theme max-w-md w-full">
            <Inbox size={64} className="mx-auto text-luxury-gold mb-6" />
-           <h1 className="text-3xl font-serif font-black mb-4">Vérifiez vos emails</h1>
+           <h1 className="text-3xl font-serif font-black mb-4 text-theme">Vérifiez vos emails</h1>
            <p className="opacity-60 mb-10 text-sm leading-relaxed text-theme">Un lien de validation Signature a été envoyé à <strong>{email}</strong>. Cliquez dessus pour activer votre accès au Palais.</p>
            <button onClick={() => setIsVerifyingEmail(false)} className="w-full bg-luxury-bordeaux text-white font-black py-5 rounded-3xl uppercase text-[10px] tracking-widest shadow-xl">Retour à la connexion</button>
         </div>
@@ -146,7 +159,7 @@ function App() {
       <div className="min-h-screen bg-theme p-8 flex flex-col justify-center items-center space-y-12 animate-in fade-in">
         <div className="text-center">
            <ChefHat size={80} className="mx-auto text-luxury-bordeaux dark:text-luxury-gold mb-4" />
-           <h1 className="text-6xl font-serif font-black tracking-tighter">AppliMeal</h1>
+           <h1 className="text-6xl font-serif font-black tracking-tighter text-theme">AppliMeal</h1>
         </div>
         <div className="w-full max-w-sm space-y-6 bg-surface p-10 rounded-[60px] shadow-2xl border border-theme">
            <div className="space-y-4">
@@ -156,7 +169,7 @@ function App() {
            <button onClick={handleAuth} disabled={isAppLoading} className="w-full bg-luxury-bordeaux text-white font-black py-6 rounded-[32px] shadow-xl hover:bg-luxury-charcoal transition-all">
              {isAppLoading ? <Loader2 className="animate-spin mx-auto" /> : authMode === 'signin' ? "Accéder au Palais" : authMode === 'signup' ? "Créer ma Signature" : "Réinitialiser"}
            </button>
-           <p className="text-center"><button onClick={() => setAuthMode(authMode === 'signin' ? 'signup' : 'signin')} className="text-[9px] font-black text-luxury-gold uppercase tracking-[0.3em] hover:text-luxury-bordeaux transition-colors border-b border-luxury-gold/10 pb-1">{authMode === 'signin' ? "Nouveau Membre ? S'inscrire" : "Déjà Membre ? Se connecter"}</button></p>
+           <p className="text-center"><button onClick={() => setAuthMode(authMode === 'signin' ? 'signup' : 'signin')} className="text-[9px] font-black text-luxury-gold uppercase tracking-[0.3em] hover:text-luxury-bordeaux transition-colors border-b border-luxury-gold/10 pb-1 text-theme">{authMode === 'signin' ? "Nouveau Membre ? S'inscrire" : "Déjà Membre ? Se connecter"}</button></p>
         </div>
       </div>
     );
@@ -171,13 +184,13 @@ function App() {
             <div className="space-y-8 animate-in slide-in-from-right">
               <div className="space-y-2 text-center sm:text-left"><h2 className="text-luxury-gold font-black uppercase text-[10px] tracking-[0.3em]">Étape 1/4</h2><h1 className="text-3xl font-serif font-black leading-tight">Profil Physique</h1></div>
               <div className="space-y-6">
-                <div className="flex gap-2">{(['MALE', 'FEMALE', 'OTHER'] as const).map(g => (<button key={g} onClick={() => setProfile({...profile, gender: g})} className={cn("flex-1 py-4 rounded-2xl border text-[10px] font-black transition-all", profile.gender === g ? "bg-luxury-bordeaux text-white border-luxury-bordeaux shadow-lg" : "bg-theme text-luxury-gold border-theme")}>{g === 'MALE' ? 'HOMME' : g === 'FEMALE' ? 'FEMME' : 'AUTRE'}</button>))}</div>
+                <div className="flex gap-2">{(['MALE', 'FEMALE', 'OTHER'] as const).map(g => (<button key={g} onClick={() => setProfile({...profile, gender: g})} className={cn("flex-1 py-4 rounded-2xl border text-[10px] font-black transition-all", profile.gender === g ? "bg-luxury-bordeaux text-white border-luxury-bordeaux shadow-lg" : "bg-theme text-theme border-theme")}>{g === 'MALE' ? 'HOMME' : g === 'FEMALE' ? 'FEMME' : 'AUTRE'}</button>))}</div>
                 <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-1"><span className="text-[10px] font-black text-luxury-gold uppercase tracking-widest pl-2 text-theme">Âge</span><input type="number" value={profile.age} onChange={e => setProfile({...profile, age: +e.target.value})} className="w-full p-5 bg-theme rounded-2xl border-none outline-none ring-1 ring-luxury-gold/10 focus:ring-2 focus:ring-luxury-gold text-theme" /></div>
-                  <div className="space-y-1"><span className="text-[10px] font-black text-luxury-gold uppercase tracking-widest pl-2 text-theme">Poids (kg)</span><input type="number" value={profile.weight} onChange={e => setProfile({...profile, weight: +e.target.value})} className="w-full p-5 bg-theme rounded-2xl border-none outline-none ring-1 ring-luxury-gold/10 focus:ring-2 focus:ring-luxury-gold text-theme" /></div>
+                  <div className="space-y-1"><span className="text-[10px] font-black text-luxury-gold uppercase tracking-widest pl-2">Âge</span><input type="number" value={profile.age} onChange={e => setProfile({...profile, age: +e.target.value})} className="w-full p-5 bg-theme rounded-2xl border-none outline-none ring-1 ring-luxury-gold/10 focus:ring-2 focus:ring-luxury-gold text-theme" /></div>
+                  <div className="space-y-1"><span className="text-[10px] font-black text-luxury-gold uppercase tracking-widest pl-2">Poids (kg)</span><input type="number" value={profile.weight} onChange={e => setProfile({...profile, weight: +e.target.value})} className="w-full p-5 bg-theme rounded-2xl border-none outline-none ring-1 ring-luxury-gold/10 focus:ring-2 focus:ring-luxury-gold text-theme" /></div>
                 </div>
               </div>
-              <button onClick={() => setOnboardingStep(2)} className="w-full bg-luxury-bordeaux text-white font-black py-6 rounded-[28px] shadow-xl transition-all">Suivant</button>
+              <button onClick={() => setOnboardingStep(2)} className="w-full bg-luxury-bordeaux text-white font-black py-6 rounded-[28px] shadow-xl hover:bg-luxury-charcoal transition-all">Suivant</button>
             </div>
           )}
           {onboardingStep === 2 && (
@@ -186,16 +199,16 @@ function App() {
               <div className="space-y-4">
                 {(['WEIGHT_LOSS', 'MAINTENANCE', 'MUSCLE_GAIN'] as const).map(goal => (<button key={goal} onClick={() => setProfile({...profile, goal})} className={cn("w-full p-6 rounded-[32px] border-2 flex justify-between items-center transition-all", profile.goal === goal ? "border-luxury-gold bg-theme" : "border-theme bg-theme/50")}><span className="font-black uppercase text-xs text-theme">{goal === 'WEIGHT_LOSS' ? 'Perte de Poids' : goal === 'MAINTENANCE' ? 'Maintien' : 'Prise de Masse'}</span><CheckCircle2 className={cn("transition-all", profile.goal === goal ? "text-luxury-gold" : "opacity-10")} /></button>))}
               </div>
-              <div className="flex gap-4"><button onClick={() => setOnboardingStep(1)} className="flex-1 bg-theme text-luxury-gold font-black py-6 rounded-[28px] text-[10px] uppercase tracking-widest border border-theme">Retour</button><button onClick={() => setOnboardingStep(3)} className="flex-[2] bg-luxury-bordeaux text-white font-black py-6 rounded-[28px] shadow-xl transition-all">Suivant</button></div>
+              <div className="flex gap-4"><button onClick={() => setOnboardingStep(1)} className="flex-1 bg-theme text-luxury-gold font-black py-6 rounded-[28px] text-[10px] uppercase tracking-widest border border-theme">Retour</button><button onClick={() => setOnboardingStep(3)} className="flex-[2] bg-luxury-bordeaux text-white font-black py-6 rounded-[28px] shadow-xl hover:bg-luxury-charcoal transition-all">Suivant</button></div>
             </div>
           )}
           {onboardingStep === 3 && (
             <div className="space-y-8 animate-in slide-in-from-right">
               <div className="space-y-2 text-center sm:text-left"><h2 className="text-luxury-gold font-black uppercase text-[10px] tracking-[0.3em]">Étape 3/4</h2><h1 className="text-3xl font-serif font-black leading-tight">Budget & Mode</h1></div>
               <div className="space-y-6">
-                <div className="space-y-1"><span className="text-[10px] font-black text-luxury-gold uppercase tracking-widest pl-2 text-theme">Budget Repas</span><select value={profile.budget} onChange={e => setProfile({...profile, budget: e.target.value as any})} className="w-full p-5 bg-theme rounded-2xl border-none outline-none ring-1 ring-luxury-gold/10 font-bold text-theme"><option value="LOW">Économique</option><option value="MEDIUM">Standard</option><option value="HIGH">Prestige</option></select></div>
+                <div className="space-y-1"><span className="text-[10px] font-black text-luxury-gold uppercase tracking-widest pl-2">Budget Repas</span><select value={profile.budget} onChange={e => setProfile({...profile, budget: e.target.value as any})} className="w-full p-5 bg-theme rounded-2xl border-none outline-none ring-1 ring-luxury-gold/10 font-bold text-theme"><option value="LOW">Économique</option><option value="MEDIUM">Standard</option><option value="HIGH">Prestige</option></select></div>
               </div>
-              <div className="flex gap-4"><button onClick={() => setOnboardingStep(2)} className="flex-1 bg-theme text-luxury-gold font-black py-6 rounded-[28px] text-[10px] uppercase tracking-widest border border-theme">Retour</button><button onClick={() => setOnboardingStep(4)} className="flex-[2] bg-luxury-bordeaux text-white font-black py-6 rounded-[28px] shadow-xl transition-all">Suivant</button></div>
+              <div className="flex gap-4"><button onClick={() => setOnboardingStep(2)} className="flex-1 bg-theme text-luxury-gold font-black py-6 rounded-[28px] text-[10px] uppercase tracking-widest border border-theme">Retour</button><button onClick={() => setOnboardingStep(4)} className="flex-[2] bg-luxury-bordeaux text-white font-black py-6 rounded-[28px] shadow-xl hover:bg-luxury-charcoal transition-all">Suivant</button></div>
             </div>
           )}
           {onboardingStep === 4 && (
@@ -222,11 +235,10 @@ function App() {
         <div className="bg-surface p-10 rounded-b-[60px] shadow-2xl space-y-10 animate-in slide-in-from-top duration-700 relative overflow-hidden border-b border-theme">
           <div className="absolute top-0 right-0 w-64 h-64 bg-luxury-gold/5 rounded-full -translate-y-1/2 translate-x-1/2"></div>
           
-          {/* INTEGRATED LUXURY HEADER */}
           <div className="flex justify-between items-start relative z-10">
             <div className="space-y-1">
               <div className="flex items-center gap-2 text-luxury-gold font-black uppercase text-[10px] tracking-[0.3em]"><Award size={16}/> Niv. {profile.level}</div>
-              <h1 className="text-3xl font-serif font-black text-theme">Votre Palais</h1>
+              <h1 className="text-3xl font-serif font-black">Votre Palais</h1>
             </div>
             <div className="flex gap-2">
               <button onClick={() => setIsDarkMode(!isDarkMode)} className="bg-theme p-3 rounded-2xl text-luxury-gold hover:scale-110 transition-all shadow-sm border border-theme">
@@ -278,7 +290,7 @@ function App() {
         )}
       </main>
 
-      {!isConciergeOpen && !selectedRecipe && !activeWorkout && !aiResult && !isVerifyingEmail && (
+      {!isConciergeOpen && !selectedRecipe && !aiResult && !isVerifyingEmail && (
         <button onClick={() => setIsConciergeOpen(true)} className="fixed bottom-36 right-6 z-[60] bg-luxury-gold text-white p-5 rounded-[28px] shadow-2xl shadow-luxury-gold/40 hover:scale-110 transition-all animate-bounce">
           <MessageSquare size={28} />
         </button>
@@ -298,7 +310,7 @@ function App() {
                    </div>
                 </div>
               ))}
-              {isChatLoading && <div className="flex justify-start"><div className="bg-surface p-5 rounded-[32px] shadow-sm border border-theme"><Loader2 className="animate-spin text-luxury-gold" size={20}/></div></div>}
+              {isChatLoading && <div className="flex justify-start"><div className="bg-surface p-5 rounded-[32px] shadow-sm border border-theme text-theme"><Loader2 className="animate-spin text-luxury-gold" size={20}/></div></div>}
            </div>
            <div className="p-4 bg-surface border-t border-theme flex gap-3">
               <input type="text" value={chatInput} onChange={e => setChatInput(e.target.value)} onKeyPress={e => e.key === 'Enter' && askCoach()} placeholder="Votre question..." className="flex-1 bg-theme rounded-3xl px-6 py-4 outline-none text-sm text-theme border border-theme focus:ring-1 focus:ring-luxury-gold" />
@@ -326,7 +338,7 @@ function App() {
         <div className="fixed inset-0 z-[150] bg-theme overflow-y-auto animate-in slide-in-from-bottom duration-700">
            <div className="p-10 max-w-lg mx-auto space-y-12 text-theme">
               <button onClick={() => {setSelectedRecipe(null); setPortions(1);}} className="bg-surface p-5 rounded-[24px] shadow-xl text-luxury-bordeaux border border-theme hover:rotate-90 transition-all"><X size={24}/></button>
-              <div className="space-y-6 text-center">
+              <div className="space-y-6 text-center text-theme">
                  <div className="bg-luxury-gold/10 inline-block px-6 py-2 rounded-full text-luxury-gold text-[10px] font-black uppercase tracking-[0.4em]">Signature Gastronomique</div>
                  <h2 className="text-5xl font-serif font-black leading-[1.1] tracking-tighter">{selectedRecipe.name}</h2>
                  <p className="opacity-60 italic text-xl px-4 leading-relaxed">"{selectedRecipe.description}"</p>
