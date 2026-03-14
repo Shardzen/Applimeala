@@ -5,16 +5,29 @@ const BASE_URL = 'https://api.spoonacular.com/recipes';
 
 export const fetchRecipesFromDB = async (profile: UserProfile, targetCalories: number): Promise<Recipe[]> => {
   try {
+    if (!SPOONACULAR_KEY || SPOONACULAR_KEY === 'undefined') {
+      console.warn("Spoonacular API Key is missing. Check your environment variables.");
+      return [];
+    }
+
     const mealTarget = Math.round(targetCalories / 3);
     const diet = profile.diet !== 'NONE' ? `&diet=${profile.diet.toLowerCase().replace('_', ' ')}` : '';
     
-    // Search for recipes matching calories and diet
     const response = await fetch(
       `${BASE_URL}/complexSearch?apiKey=${SPOONACULAR_KEY}&maxCalories=${mealTarget + 100}&minCalories=${mealTarget - 100}${diet}&addRecipeInformation=true&fillIngredients=true&number=6`
     );
     
+    if (!response.ok) {
+      console.error(`Spoonacular API Error: ${response.status} ${response.statusText}`);
+      return [];
+    }
+
     const data = await response.json();
     
+    if (!data.results || !Array.isArray(data.results)) {
+      return [];
+    }
+
     return data.results.map((r: any) => ({
       id: r.id.toString(),
       name: r.title,
