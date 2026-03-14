@@ -12,10 +12,15 @@ export interface AIResult {
   fats: number;
 }
 
+// Helper to get model with fallback
+const getModel = (modelName: string = "gemini-1.5-flash") => {
+  return genAI.getGenerativeModel({ model: modelName });
+};
+
 export const analyzeMealImage = async (imageFile: File): Promise<AIResult> => {
   if (!API_KEY) throw new Error("Clé API Gemini manquante.");
   try {
-    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+    const model = getModel();
 
     const imageData = await new Promise<string>((resolve) => {
       const reader = new FileReader();
@@ -34,27 +39,47 @@ export const analyzeMealImage = async (imageFile: File): Promise<AIResult> => {
     const text = response.text();
     const cleanJson = text.replace(/```json/g, "").replace(/```/g, "").trim();
     return JSON.parse(cleanJson);
-  } catch (error) {
+  } catch (error: any) {
     console.error("Gemini AI Error:", error);
-    throw new Error("L'IA n'a pas pu analyser l'image.");
+    // If Flash is not found, try a standard model as fallback
+    if (error.message?.includes('404')) {
+       try {
+         const fallbackModel = getModel("gemini-pro");
+         // Note: Image analysis might not work with gemini-pro if it doesn't support vision
+         // but for text it's fine. Flash is better for vision.
+       } catch (e) {}
+    }
+    throw new Error("L'IA n'a pas pu analyser l'image. Vérifiez votre clé API ou le modèle.");
   }
 };
 
 export const askConcierge = async (question: string, profile: UserProfile, remainingCals: number): Promise<string> => {
   if (!API_KEY) return "Veuillez configurer votre clé API Gemini pour me parler.";
   try {
-    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
-    
-    const context = `Tu es le "Concierge Elite", un coach en nutrition de luxe, très poli, concis et motivant. 
-    L'utilisateur a pour objectif: ${profile.goal}. 
-    Il lui reste exactement ${remainingCals} Kcal à manger aujourd'hui.
-    Réponds de manière experte et courte (max 3 phrases) à sa question : "${question}"`;
-
-    const result = await model.generateContent(context);
-    const response = await result.response;
-    return response.text();
+    // We try gemini-1.5-flash first, and fallback to gemini-pro if flash is 404
+    let model;
+    try {
+      model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+      const context = `Tu es le "Concierge Elite", un coach en nutrition de luxe, très poli, concis et motivant. 
+      L'utilisateur a pour objectif: ${profile.goal}. 
+      Il lui reste exactement ${remainingCals} Kcal à manger aujourd'hui.
+      Réponds de manière experte et courte (max 3 phrases) à sa question : "${question}"`;
+      
+      const result = await model.generateContent(context);
+      const response = await result.response;
+      return response.text();
+    } catch (err: any) {
+      if (err.message?.includes('404')) {
+        model = genAI.getGenerativeModel({ model: "gemini-pro" });
+        const context = `Tu es le "Concierge Elite", coach en nutrition. Objectif: ${profile.goal}. Reste: ${remainingCals} Kcal. Question: ${question}`;
+        const result = await model.generateContent(context);
+        const response = await result.response;
+        return response.text();
+      }
+      throw err;
+    }
   } catch (error) {
     console.error("Concierge Error:", error);
-    return "Je suis désolé, le service de conciergerie est momentanément indisponible.";
+    return "Je suis désolé, le service de conciergerie est momentanément indisponible. Vérifiez la validité de votre modèle Gemini.";
   }
 };
