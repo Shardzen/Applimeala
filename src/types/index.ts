@@ -13,6 +13,7 @@ export interface UserProfile {
   weight: number;
   targetWeight: number;
   activityLevel: ActivityLevel;
+  trainingFrequency: number; // New: times per week
   goal: UserGoal;
   goalSpeed: GoalSpeed;
   budget: BudgetLevel;
@@ -24,32 +25,20 @@ export interface UserProfile {
   streak: number;
 }
 
-export interface WeightEntry {
-  date: string;
-  weight: number;
-}
-
-export interface UserStats {
-  streak: number;
-  badges: string[];
-  weightHistory: WeightEntry[];
-}
-
 export interface Exercise {
   id: string;
   name: string;
-  gifUrl: string;
-  reps?: number;
-  duration?: number; // in seconds
-  rest: number;
+  reps?: string;
+  sets?: number;
+  weightUsed?: string; // For tracking
 }
 
 export interface Workout {
   id: string;
   title: string;
-  focus: 'CARDIO' | 'STRENGTH' | 'MOBILITY';
+  focus: string;
   location: 'HOME' | 'GYM';
-  duration: number; // minutes
+  duration: number;
   caloriesBurned: number;
   exercises: Exercise[];
 }
@@ -82,6 +71,7 @@ export interface Recipe {
   prepTime: number;
   difficulty: 'EASY' | 'MEDIUM' | 'HARD';
   costPerPortion: number;
+  image?: string;
   tags: string[];
 }
 
@@ -92,4 +82,10 @@ export interface DailyProgress {
   consumedFats: number;
   waterGlassCount: number;
   exerciseCalories: number;
+}
+
+export interface UserStats {
+  streak: number;
+  badges: string[];
+  weightHistory: { date: string; weight: number }[];
 }
