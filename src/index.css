@@ -5,42 +5,42 @@
   --color-luxury-gold: #D4AF37;
   --color-luxury-cream: #FDFCF8;
   --color-luxury-charcoal: #1A1A1A;
-  
-  --color-midnight-base: #0A0A0A;
-  --color-midnight-surface: #141414;
-  
   --font-serif: "Playfair Display", serif;
 }
 
-/* VARIABLES DE THÈME DYNAMIQUES */
+/* LE MOTEUR DE THÈME */
 :root {
-  --bg-app: #FDFCF8;
-  --text-app: #1A1A1A;
-  --surface-app: #FFFFFF;
-  --border-app: rgba(212, 175, 55, 0.1);
+  --bg-palais: #FDFCF8;
+  --bg-surface: #FFFFFF;
+  --text-main: #1A1A1A;
+  --text-muted: rgba(74, 4, 4, 0.6);
+  --border-subtile: rgba(212, 175, 55, 0.1);
 }
 
-html.dark {
-  --bg-app: #0A0A0A;
-  --text-app: #FDFCF8;
-  --surface-app: #141414;
-  --border-app: rgba(212, 175, 55, 0.2);
+.dark {
+  --bg-palais: #0A0A0A;
+  --bg-surface: #141414;
+  --text-main: #FDFCF8;
+  --text-muted: rgba(212, 175, 55, 0.6);
+  --border-subtile: rgba(212, 175, 55, 0.2);
 }
 
+/* APPLICATION GLOBALE */
 html, body {
-  background-color: var(--bg-app) !important;
-  color: var(--text-app) !important;
-  transition: background-color 0.3s ease, color 0.3s ease;
+  background-color: var(--bg-palais) !important;
+  color: var(--text-main) !important;
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
   margin: 0;
   min-height: 100vh;
 }
 
-/* Utilitaires pour forcer les couleurs du thème */
-.bg-theme { background-color: var(--bg-app); }
-.bg-surface { background-color: var(--surface-app); }
-.text-theme { color: var(--text-app); }
-.border-theme { border-color: var(--border-app); }
+/* CLASSES UTILITAIRES DYNAMIQUES */
+.bg-palais { background-color: var(--bg-palais); }
+.bg-elite-surface { background-color: var(--bg-surface); }
+.text-elite { color: var(--text-main); }
+.text-elite-muted { color: var(--text-muted); }
+.border-elite { border-color: var(--border-subtile); }
 
-/* Custom Scrollbar */
+/* Scrollbar dorée */
 ::-webkit-scrollbar { width: 6px; }
 ::-webkit-scrollbar-thumb { background: #D4AF37; border-radius: 10px; }
