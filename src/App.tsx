@@ -63,9 +63,20 @@ function App() {
       if (user) {
         setSession(user);
         const dbProfile = await getProfile(user.id);
-        if (dbProfile) { setProfile(prev => ({...prev, ...dbProfile})); setHasOnboarded(true); handleGenerate(dbProfile); }
+        if (dbProfile) { 
+          setProfile(prev => ({...prev, ...dbProfile})); 
+          setHasOnboarded(true); 
+          handleGenerate(dbProfile); 
+        } else {
+          toast.info("Bienvenue ! Créons votre profil Signature.");
+        }
       }
-    } finally { setIsAuthLoading(false); }
+    } catch (e: any) {
+      console.error("Supabase Error:", e);
+      toast.error("Connexion au Palais impossible : " + (e.message || "Erreur inconnue"));
+    } finally { 
+      setIsAuthLoading(false); 
+    }
   };
 
   const handleAuth = async () => {
