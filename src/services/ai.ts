@@ -41,15 +41,7 @@ export const analyzeMealImage = async (imageFile: File): Promise<AIResult> => {
     return JSON.parse(cleanJson);
   } catch (error: any) {
     console.error("Gemini AI Error:", error);
-    // If Flash is not found, try a standard model as fallback
-    if (error.message?.includes('404')) {
-       try {
-         const fallbackModel = getModel("gemini-pro");
-         // Note: Image analysis might not work with gemini-pro if it doesn't support vision
-         // but for text it's fine. Flash is better for vision.
-       } catch (e) {}
-    }
-    throw new Error("L'IA n'a pas pu analyser l'image. Vérifiez votre clé API ou le modèle.");
+    throw new Error("L'IA n'a pas pu analyser l'image. Vérifiez votre clé API ou le modèle (404).");
   }
 };
 
@@ -57,9 +49,8 @@ export const askConcierge = async (question: string, profile: UserProfile, remai
   if (!API_KEY) return "Veuillez configurer votre clé API Gemini pour me parler.";
   try {
     // We try gemini-1.5-flash first, and fallback to gemini-pro if flash is 404
-    let model;
     try {
-      model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+      const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
       const context = `Tu es le "Concierge Elite", un coach en nutrition de luxe, très poli, concis et motivant. 
       L'utilisateur a pour objectif: ${profile.goal}. 
       Il lui reste exactement ${remainingCals} Kcal à manger aujourd'hui.
@@ -70,7 +61,7 @@ export const askConcierge = async (question: string, profile: UserProfile, remai
       return response.text();
     } catch (err: any) {
       if (err.message?.includes('404')) {
-        model = genAI.getGenerativeModel({ model: "gemini-pro" });
+        const model = genAI.getGenerativeModel({ model: "gemini-pro" });
         const context = `Tu es le "Concierge Elite", coach en nutrition. Objectif: ${profile.goal}. Reste: ${remainingCals} Kcal. Question: ${question}`;
         const result = await model.generateContent(context);
         const response = await result.response;
