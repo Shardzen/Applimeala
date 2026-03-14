@@ -1,26 +1,64 @@
 export type UserGoal = 'WEIGHT_LOSS' | 'MUSCLE_GAIN' | 'MAINTENANCE';
-export type ActivityLevel = 'SEDENTARY' | 'ACTIVE' | 'VERY_ACTIVE';
+export type ActivityLevel = 'SEDENTARY' | 'LIGHT' | 'MODERATE' | 'INTENSE';
+export type GoalSpeed = 'SLOW' | 'STANDARD' | 'FAST';
 export type BudgetLevel = 'LOW' | 'MEDIUM' | 'HIGH';
-export type DietType = 'NONE' | 'VEGAN' | 'GLUTEN_FREE' | 'KETO' | 'PALEO';
+export type PrepTime = 'EXPRESS' | 'MEDIUM' | 'CHEF';
+export type DietType = 'NONE' | 'VEGAN' | 'GLUTEN_FREE' | 'LACTOSE_FREE' | 'HALAL' | 'VEGETARIAN';
 
 export interface UserProfile {
+  id?: string;
+  gender: 'MALE' | 'FEMALE' | 'OTHER';
   age: number;
-  weight: number;
   height: number;
-  gender: 'MALE' | 'FEMALE';
+  weight: number;
+  targetWeight: number;
   activityLevel: ActivityLevel;
   goal: UserGoal;
+  goalSpeed: GoalSpeed;
   budget: BudgetLevel;
+  prepTime: PrepTime;
   diet: DietType;
   exclusions: string[];
+  xp: number;
+  level: number;
+  streak: number;
 }
 
-export interface DailyProgress {
-  consumedCalories: number;
-  consumedProteins: number;
-  consumedCarbs: number;
-  consumedFats: number;
-  waterGlassCount: number;
+export interface WeightEntry {
+  date: string;
+  weight: number;
+}
+
+export interface UserStats {
+  streak: number;
+  badges: string[];
+  weightHistory: WeightEntry[];
+}
+
+export interface Exercise {
+  id: string;
+  name: string;
+  gifUrl: string;
+  reps?: number;
+  duration?: number; // in seconds
+  rest: number;
+}
+
+export interface Workout {
+  id: string;
+  title: string;
+  focus: 'CARDIO' | 'STRENGTH' | 'MOBILITY';
+  location: 'HOME' | 'GYM';
+  duration: number; // minutes
+  caloriesBurned: number;
+  exercises: Exercise[];
+}
+
+export interface NutritionTargets {
+  calories: number;
+  proteins: number;
+  carbs: number;
+  fats: number;
 }
 
 export interface Ingredient {
@@ -47,8 +85,11 @@ export interface Recipe {
   tags: string[];
 }
 
-export interface UserStats {
-  streak: number;
-  badges: string[];
-  weightHistory: { date: string; weight: number }[];
+export interface DailyProgress {
+  consumedCalories: number;
+  consumedProteins: number;
+  consumedCarbs: number;
+  consumedFats: number;
+  waterGlassCount: number;
+  exerciseCalories: number;
 }

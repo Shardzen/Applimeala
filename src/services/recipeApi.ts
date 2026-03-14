@@ -1,38 +1,45 @@
-import { supabase } from '../lib/supabaseClient';
 import type { Recipe, UserProfile } from '../types';
 
-/**
- * Fetches real recipes from Supabase with smart filtering
- */
+const SPOONACULAR_KEY = import.meta.env.VITE_SPOONACULAR_API_KEY;
+const BASE_URL = 'https://api.spoonacular.com/recipes';
+
 export const fetchRecipesFromDB = async (profile: UserProfile, targetCalories: number): Promise<Recipe[]> => {
-  // 1. Structure the query
-  let query = supabase
-    .from('recipes')
-    .select('*, ingredients(*)');
-
-  // 2. Apply dietary filters
-  if (profile.diet !== 'NONE') {
-    query = query.contains('tags', [profile.diet]);
+  try {
+    const mealTarget = Math.round(targetCalories / 3);
+    const diet = profile.diet !== 'NONE' ? `&diet=${profile.diet.toLowerCase().replace('_', ' ')}` : '';
+    
+    // Search for recipes matching calories and diet
+    const response = await fetch(
+      `${BASE_URL}/complexSearch?apiKey=${SPOONACULAR_KEY}&maxCalories=${mealTarget + 100}&minCalories=${mealTarget - 100}${diet}&addRecipeInformation=true&fillIngredients=true&number=6`
+    );
+    
+    const data = await response.json();
+    
+    return data.results.map((r: any) => ({
+      id: r.id.toString(),
+      name: r.title,
+      description: r.summary?.replace(/<[^>]*>?/gm, '').substring(0, 150) + '...',
+      calories: Math.round(r.nutrition?.nutrients.find((n: any) => n.name === 'Calories')?.amount || mealTarget),
+      proteins: Math.round(r.nutrition?.nutrients.find((n: any) => n.name === 'Protein')?.amount || 30),
+      carbs: Math.round(r.nutrition?.nutrients.find((n: any) => n.name === 'Carbohydrates')?.amount || 50),
+      fats: Math.round(r.nutrition?.nutrients.find((n: any) => n.name === 'Fat')?.amount || 15),
+      prepTime: r.readyInMinutes || 30,
+      difficulty: r.readyInMinutes < 20 ? 'EASY' : r.readyInMinutes < 45 ? 'MEDIUM' : 'HARD',
+      costPerPortion: (r.pricePerServing / 100) || 2.5,
+      tags: r.diets || [],
+      ingredients: r.extendedIngredients.map((i: any) => ({
+        id: i.id.toString(),
+        name: i.name,
+        quantity: i.amount,
+        unit: i.unit,
+        pricePerUnit: 0.1, // Spoonacular doesn't give precise price per ingredient easily
+        category: 'GROCERY'
+      }))
+    }));
+  } catch (error) {
+    console.error("Spoonacular API Error:", error);
+    return []; // Will fallback to MOCK in App.tsx
   }
-
-  // 3. Caloric range filtering (+/- 15% of target per meal)
-  const mealTarget = Math.round(targetCalories / 3);
-  const min = Math.round(mealTarget * 0.7);
-  const max = Math.round(mealTarget * 1.3);
-  
-  query = query.gte('calories', min).lte('calories', max);
-
-  const { data, error } = await query;
-  if (error) throw error;
-  
-  // Transform DB format to App format if necessary
-  return (data as any[]).map(r => ({
-    ...r,
-    ingredients: r.ingredients.map((i: any) => ({
-      ...i,
-      pricePerUnit: i.price_per_unit // Mapping DB underscore to camelCase
-    }))
-  }));
 };
 
 export const getDriveLink = (ingredients: { name: string; quantity: number }[]) => {

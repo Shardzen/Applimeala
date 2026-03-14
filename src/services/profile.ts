@@ -12,7 +12,14 @@ export const saveProfile = async (userId: string, profile: UserProfile) => {
       gender: profile.gender,
       activity_level: profile.activityLevel,
       goal: profile.goal,
+      goal_speed: profile.goalSpeed,
+      target_weight: profile.targetWeight,
       budget: profile.budget,
+      prep_time: profile.prepTime,
+      diet: profile.diet,
+      xp: profile.xp,
+      level: profile.level,
+      streak: profile.streak,
       updated_at: new Date().toISOString(),
     });
 
@@ -20,13 +27,33 @@ export const saveProfile = async (userId: string, profile: UserProfile) => {
   return data;
 };
 
-export const getProfile = async (userId: string) => {
+export const getProfile = async (userId: string): Promise<UserProfile | null> => {
   const { data, error } = await supabase
     .from('profiles')
     .select('*')
     .eq('id', userId)
     .single();
 
-  if (error && error.code !== 'PGRST116') throw error; // PGRST116 is "no rows found"
-  return data;
+  if (error) {
+    if (error.code === 'PGRST116') return null;
+    throw error;
+  }
+
+  return {
+    age: data.age,
+    weight: data.weight,
+    height: data.height,
+    gender: data.gender,
+    activityLevel: data.activity_level,
+    goal: data.goal,
+    goalSpeed: data.goal_speed || 'STANDARD',
+    targetWeight: data.target_weight || data.weight,
+    budget: data.budget,
+    prepTime: data.prep_time || 'MEDIUM',
+    diet: data.diet || 'NONE',
+    exclusions: [],
+    xp: data.xp || 0,
+    level: data.level || 1,
+    streak: data.streak || 0
+  };
 };

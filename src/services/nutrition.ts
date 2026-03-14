@@ -1,55 +1,41 @@
-import type { UserProfile, NutritionTargets, ActivityLevel } from '../types';
+import type { UserProfile, NutritionTargets, ActivityLevel, GoalSpeed } from '../types';
 
 const activityMultipliers: Record<ActivityLevel, number> = {
   'SEDENTARY': 1.2,
-  'ACTIVE': 1.55,
-  'VERY_ACTIVE': 1.9
+  'LIGHT': 1.375,
+  'MODERATE': 1.55,
+  'INTENSE': 1.725
+};
+
+const speedCalories: Record<GoalSpeed, number> = {
+  'SLOW': 250,
+  'STANDARD': 500,
+  'FAST': 750
 };
 
 export const calculateBMR = (profile: UserProfile): number => {
   const { weight, height, age, gender } = profile;
-  const bmr = 10 * weight + 6.25 * height - 5 * age;
-  return gender === 'MALE' ? bmr + 5 : bmr - 161;
-};
-
-export const calculateTDEE = (profile: UserProfile): number => {
-  const bmr = calculateBMR(profile);
-  const multiplier = activityMultipliers[profile.activityLevel];
-  return Math.round(bmr * multiplier);
+  // Mifflin-St Jeor Formula
+  let bmr = (10 * weight) + (6.25 * height) - (5 * age);
+  if (gender === 'MALE') return bmr + 5;
+  if (gender === 'FEMALE') return bmr - 161;
+  return bmr - 78; // OTHER / neutral
 };
 
 export const calculateNutritionTargets = (profile: UserProfile): NutritionTargets => {
-  const tdee = calculateTDEE(profile);
+  const bmr = calculateBMR(profile);
+  const tdee = Math.round(bmr * activityMultipliers[profile.activityLevel]);
+  
   let targetCalories = tdee;
+  const speedAdj = speedCalories[profile.goalSpeed];
 
-  switch (profile.goal) {
-    case 'WEIGHT_LOSS':
-      targetCalories -= 500;
-      break;
-    case 'MUSCLE_GAIN':
-      targetCalories += 300;
-      break;
-    case 'MAINTENANCE':
-    default:
-      break;
-  }
+  if (profile.goal === 'WEIGHT_LOSS') targetCalories -= speedAdj;
+  if (profile.goal === 'MUSCLE_GAIN') targetCalories += speedAdj;
 
-  // Protein targets: 
-  // - Gain: 2g/kg bodyweight
-  // - Loss: 2.2g/kg (to preserve lean mass)
-  // - Maint: 1.6g/kg
-  let proteinTarget = 1.8 * profile.weight;
-  if (profile.goal === 'MUSCLE_GAIN') proteinTarget = 2.0 * profile.weight;
-  if (profile.goal === 'WEIGHT_LOSS') proteinTarget = 2.2 * profile.weight;
-
-  const proteins = Math.round(proteinTarget);
-  const fats = Math.round((targetCalories * 0.25) / 9); // ~25% from fats
+  // Macros Calculation Elite
+  const proteins = Math.round(profile.weight * (profile.goal === 'MUSCLE_GAIN' ? 2.2 : 1.8));
+  const fats = Math.round((targetCalories * 0.25) / 9);
   const carbs = Math.round((targetCalories - (proteins * 4) - (fats * 9)) / 4);
 
-  return {
-    calories: targetCalories,
-    proteins,
-    carbs,
-    fats,
-  };
+  return { calories: targetCalories, proteins, carbs, fats };
 };
