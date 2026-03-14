@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
-import type { UserProfile, NutritionTargets, Recipe, DailyProgress, UserStats, Workout, Exercise } from './types';
+import type { UserProfile, NutritionTargets, Recipe, DailyProgress, UserStats, Workout } from './types';
 import { calculateNutritionTargets } from './services/nutrition';
-import { aggregateShoppingList, generateDailyPlan } from './services/generator';
+import { aggregateShoppingList } from './services/generator';
 import { saveProfile, getProfile } from './services/profile';
 import { signIn, signUp, signOut, getCurrentUser, signInWithGoogle, resetPassword } from './services/auth';
 import { analyzeMealImage, type AIResult } from './services/ai';
@@ -10,7 +10,7 @@ import type { User } from '@supabase/supabase-js';
 import { 
   Utensils, ShoppingCart, ChefHat, Camera, TrendingUp, ChevronRight, CheckCircle2,
   Loader2, X, Award, History as HistoryIcon, LogOut, Sparkles,
-  Droplets, Plus, Minus, Dumbbell, MapPin, Zap, Target, Mail, Lock, ExternalLink, Clock
+  Droplets, Plus, Minus, Dumbbell, Zap, Target, ExternalLink, Mail, Lock as LockIcon
 } from 'lucide-react';
 import { Toaster, toast } from 'sonner';
 import { clsx, type ClassValue } from 'clsx';
@@ -159,15 +159,25 @@ function App() {
       <div className="min-h-screen bg-luxury-cream p-8 flex flex-col justify-center items-center space-y-12 animate-in fade-in duration-1000">
         <div className="text-center space-y-4">
            <ChefHat size={80} className="mx-auto text-luxury-bordeaux mb-4" />
-           <h1 className="text-6xl font-serif font-black text-luxury-charcoal">AppliMeal</h1>
-           <p className="text-luxury-bordeaux/60 font-medium italic">L'Excellence au quotidien</p>
+           <h1 className="text-6xl font-serif font-black text-luxury-charcoal tracking-tighter">AppliMeal</h1>
+           <p className="text-luxury-bordeaux/60 font-medium italic uppercase text-[10px]">L'Excellence au quotidien</p>
         </div>
         <div className="w-full max-w-sm space-y-6 bg-white p-10 rounded-[60px] shadow-2xl border border-luxury-gold/10 relative overflow-hidden">
            <div className="absolute top-0 left-0 w-full h-1.5 bg-luxury-gold/20" />
            <div className="space-y-6">
               <div className="space-y-4">
-                 <div className="relative group"><Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-luxury-gold/40 group-focus-within:text-luxury-gold" size={20} /><input type="email" placeholder="Email Signature" value={email} onChange={e => setEmail(e.target.value)} className="w-full p-5 pl-12 bg-luxury-cream rounded-2xl border-none outline-none ring-1 ring-luxury-gold/10 focus:ring-2 focus:ring-luxury-gold transition-all" /></div>
-                 {authMode !== 'forgot' && <div className="relative group"><Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-luxury-gold/40 group-focus-within:text-luxury-gold" size={20} /><input type="password" placeholder="Password" value={password} onChange={e => setPassword(e.target.value)} className="w-full p-5 pl-12 bg-luxury-cream rounded-2xl border-none outline-none ring-1 ring-luxury-gold/10 focus:ring-2 focus:ring-luxury-gold transition-all" /></div>}
+                 <div className="relative group">
+                    <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-luxury-gold/40 group-focus-within:text-luxury-gold" size={20} />
+                    <input type="email" placeholder="Email Signature" value={email} onChange={e => setEmail(e.target.value)} 
+                      className="w-full p-5 pl-12 bg-luxury-cream rounded-2xl border-none outline-none ring-1 ring-luxury-gold/10 focus:ring-2 focus:ring-luxury-gold transition-all font-medium text-luxury-charcoal" />
+                 </div>
+                 {authMode !== 'forgot' && (
+                   <div className="relative group">
+                      <LockIcon className="absolute left-4 top-1/2 -translate-y-1/2 text-luxury-gold/40 group-focus-within:text-luxury-gold" size={20} />
+                      <input type="password" placeholder="Moteur de passe" value={password} onChange={e => setPassword(e.target.value)} 
+                        className="w-full p-5 pl-12 bg-luxury-cream rounded-2xl border-none outline-none ring-1 ring-luxury-gold/10 focus:ring-2 focus:ring-luxury-gold transition-all font-medium text-luxury-charcoal" />
+                   </div>
+                 )}
               </div>
               {authMode === 'signin' && (<div className="flex justify-end pr-2"><button onClick={() => setAuthMode('forgot')} className="text-[10px] font-black text-luxury-gold/60 uppercase tracking-widest hover:text-luxury-gold transition-colors">Mot de passe oublié ?</button></div>)}
               <button onClick={handleAuth} disabled={isAppLoading} className="w-full bg-luxury-bordeaux text-white font-black py-6 rounded-[32px] shadow-xl hover:bg-luxury-charcoal transition-all">
@@ -373,7 +383,7 @@ function App() {
                 <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-full -translate-y-1/2 translate-x-1/2"></div>
                 <h3 className="text-luxury-gold font-black uppercase text-[10px] tracking-[0.4em] flex items-center gap-3 relative z-10"><Award size={20}/> Succès & Distinction</h3>
                 <div className="grid grid-cols-2 gap-5 relative z-10">
-                   {stats.badges.map(b => <div key={b} className="bg-white/5 p-8 rounded-[40px] border border-white/10 flex flex-col items-center gap-4 text-center transition-all group hover:bg-white/10"><div className="bg-luxury-gold/20 p-5 rounded-[24px] text-luxury-gold group-hover:scale-110 transition-transform"><Sparkles size={32}/></div><p className="text-[10px] font-black uppercase tracking-widest leading-relaxed">{b.replace('_', ' ')}</p></div>)}
+                   {stats.badges.map(b => <div key={b} className="bg-white/5 p-8 rounded-[40px] border border-white/10 flex flex-col items-center gap-4 text-center hover:bg-white/10 transition-all group hover:scale-110 transition-transform"><div className="bg-luxury-gold/20 p-5 rounded-[24px] text-luxury-gold animate-pulse"><Sparkles size={32}/></div><p className="text-[10px] font-black uppercase tracking-widest leading-relaxed">{b.replace('_', ' ')}</p></div>)}
                 </div>
              </div>
           </div>
