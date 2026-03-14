@@ -13,7 +13,7 @@ export interface UserProfile {
   weight: number;
   targetWeight: number;
   activityLevel: ActivityLevel;
-  trainingFrequency: number; // New: times per week
+  trainingFrequency: number;
   goal: UserGoal;
   goalSpeed: GoalSpeed;
   budget: BudgetLevel;

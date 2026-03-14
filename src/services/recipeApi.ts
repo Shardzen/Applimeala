@@ -12,8 +12,8 @@ export const fetchRecipesFromDB = async (profile: UserProfile, targetCalories: n
     
     // Budget Mapping (Spoonacular price is in cents per serving)
     let maxPrice = 1000; // Default Gourmet
-    if (profile.budget === 'LOW') maxPrice = 250; // < 2.5€
-    if (profile.budget === 'MEDIUM') maxPrice = 500; // < 5€
+    if (profile.budget === 'LOW') maxPrice = 250; // < 2.5€ per serving
+    if (profile.budget === 'MEDIUM') maxPrice = 500; // < 5€ per serving
 
     const response = await fetch(
       `${BASE_URL}/complexSearch?apiKey=${SPOONACULAR_KEY}&maxCalories=${mealTarget + 200}&minCalories=${mealTarget - 150}${diet}&maxPriceServings=${maxPrice}&addRecipeInformation=true&fillIngredients=true&number=12`
@@ -52,6 +52,7 @@ export const fetchRecipesFromDB = async (profile: UserProfile, targetCalories: n
 };
 
 export const getDriveLink = (ingredients: { name: string; quantity: number }[]) => {
+  if (!ingredients || ingredients.length === 0) return 'https://www.leclercdrive.fr/';
   const query = ingredients.map(i => i.name).join(',');
   return `https://www.leclercdrive.fr/recherche.aspx?SearchTerm=${encodeURIComponent(query)}`;
 };
