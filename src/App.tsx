@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import type { UserProfile, NutritionTargets, Recipe, DailyProgress, ActivityLevel, BudgetLevel, DietType, Workout } from './types';
 import { calculateNutritionTargets } from './services/nutrition';
 import { saveProfile, getProfile } from './services/profile';
-import { signIn, signUp, signOut, getCurrentUser, signInWithGoogle } from './services/auth';
+import { signIn, signUp, signOut, getCurrentUser, signInWithGoogle, resetPassword } from './services/auth';
 import { analyzeMealImage, type AIResult } from './services/ai';
 import { fetchRecipesFromDB } from './services/recipeApi';
 import type { User } from '@supabase/supabase-js';
@@ -36,7 +36,7 @@ function App() {
   const [isAppLoading, setIsAppLoading] = useState(false);
   const [activeTab, setActiveTab] = useState<'dashboard' | 'meals' | 'shopping' | 'studio' | 'progress'>('dashboard');
   
-  const [authMode, setAuthMode] = useState<'signin' | 'signup'>('signin');
+  const [authMode, setAuthMode] = useState<'signin' | 'signup' | 'forgot'>('signin');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   
@@ -63,29 +63,37 @@ function App() {
       if (user) {
         setSession(user);
         const dbProfile = await getProfile(user.id);
-        if (dbProfile) { 
-          setProfile(prev => ({...prev, ...dbProfile})); 
-          setHasOnboarded(true); 
-          handleGenerate(dbProfile); 
-        } else {
-          toast.info("Bienvenue ! Créons votre profil Signature.");
-        }
+        if (dbProfile) { setProfile(prev => ({...prev, ...dbProfile})); setHasOnboarded(true); handleGenerate(dbProfile); }
       }
-    } catch (e: any) {
-      console.error("Supabase Error:", e);
-      toast.error("Connexion au Palais impossible : " + (e.message || "Erreur inconnue"));
-    } finally { 
-      setIsAuthLoading(false); 
-    }
+    } finally { setIsAuthLoading(false); }
   };
 
   const handleAuth = async () => {
+    if (!email) return toast.error("Veuillez entrer votre email.");
+    if (authMode !== 'forgot' && !password) return toast.error("Veuillez entrer votre mot de passe.");
+
     setIsAppLoading(true);
     try {
-      if (authMode === 'signin') await signIn(email, password);
-      else await signUp(email, password);
-      await checkUser();
-    } catch (e: any) { toast.error(e.message); } finally { setIsAppLoading(false); }
+      if (authMode === 'signin') {
+        await signIn(email, password);
+        toast.success('Bienvenue au Palais.');
+        await checkUser();
+      } else if (authMode === 'signup') {
+        await signUp(email, password);
+        toast.success('Compte créé ! Veuillez vérifier votre boîte mail pour confirmer votre inscription.', {
+          duration: 6000,
+        });
+        setAuthMode('signin');
+      } else {
+        await resetPassword(email);
+        toast.success('Lien de réinitialisation envoyé par email.');
+        setAuthMode('signin');
+      }
+    } catch (e: any) {
+      toast.error(e.message);
+    } finally {
+      setIsAppLoading(false);
+    }
   };
 
   const handleGoogleAuth = async () => {
@@ -146,29 +154,43 @@ function App() {
                     <input type="email" placeholder="Email Signature" value={email} onChange={e => setEmail(e.target.value)} 
                       className="w-full p-5 pl-12 bg-luxury-cream rounded-2xl border-none outline-none ring-1 ring-luxury-gold/10 focus:ring-2 focus:ring-luxury-gold transition-all font-medium text-luxury-charcoal" />
                  </div>
-                 <div className="relative group">
-                    <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-luxury-gold/40 group-focus-within:text-luxury-gold transition-colors" size={20} />
-                    <input type="password" placeholder="Moteur de passe" value={password} onChange={e => setPassword(e.target.value)} 
-                      className="w-full p-5 pl-12 bg-luxury-cream rounded-2xl border-none outline-none ring-1 ring-luxury-gold/10 focus:ring-2 focus:ring-luxury-gold transition-all font-medium text-luxury-charcoal" />
-                 </div>
+                 {authMode !== 'forgot' && (
+                   <div className="relative group">
+                      <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-luxury-gold/40 group-focus-within:text-luxury-gold transition-colors" size={20} />
+                      <input type="password" placeholder="Moteur de passe" value={password} onChange={e => setPassword(e.target.value)} 
+                        className="w-full p-5 pl-12 bg-luxury-cream rounded-2xl border-none outline-none ring-1 ring-luxury-gold/10 focus:ring-2 focus:ring-luxury-gold transition-all font-medium text-luxury-charcoal" />
+                   </div>
+                 )}
               </div>
+
+              {authMode === 'signin' && (
+                <div className="flex justify-end pr-2">
+                  <button onClick={() => setAuthMode('forgot')} className="text-[10px] font-black text-luxury-gold/60 uppercase tracking-widest hover:text-luxury-gold transition-colors">Mot de passe oublié ?</button>
+                </div>
+              )}
 
               <button onClick={handleAuth} disabled={isAppLoading}
                 className="w-full bg-luxury-bordeaux text-white font-black py-6 rounded-[32px] shadow-xl shadow-luxury-bordeaux/20 hover:bg-luxury-charcoal transform active:scale-95 transition-all flex items-center justify-center gap-3">
-                {isAppLoading ? <Loader2 className="animate-spin" /> : authMode === 'signin' ? "Accéder au Palais" : "Créer ma Signature"}
+                {isAppLoading ? <Loader2 className="animate-spin" /> : 
+                  authMode === 'signin' ? "Accéder au Palais" : 
+                  authMode === 'signup' ? "Créer ma Signature" : "Réinitialiser"}
               </button>
 
-              <div className="relative flex items-center py-4">
-                <div className="flex-grow border-t border-luxury-gold/10"></div>
-                <span className="flex-shrink mx-4 text-luxury-gold/40 text-[10px] font-black uppercase tracking-widest">Ou</span>
-                <div className="flex-grow border-t border-luxury-gold/10"></div>
-              </div>
+              {authMode !== 'forgot' && (
+                <>
+                  <div className="relative flex items-center py-2">
+                    <div className="flex-grow border-t border-luxury-gold/10"></div>
+                    <span className="flex-shrink mx-4 text-luxury-gold/40 text-[10px] font-black uppercase tracking-widest">Ou</span>
+                    <div className="flex-grow border-t border-luxury-gold/10"></div>
+                  </div>
 
-              <button onClick={handleGoogleAuth}
-                className="w-full bg-white border border-luxury-gold/20 text-luxury-charcoal font-bold py-5 rounded-[28px] flex items-center justify-center gap-4 shadow-sm hover:bg-luxury-cream transition-all group active:scale-95">
-                <img src="https://www.google.com/favicon.ico" className="w-5 h-5 grayscale group-hover:grayscale-0 transition-all" alt="Google" />
-                <span className="text-sm tracking-tight uppercase">Continuer avec Google</span>
-              </button>
+                  <button onClick={handleGoogleAuth}
+                    className="w-full bg-white border border-luxury-gold/20 text-luxury-charcoal font-bold py-5 rounded-[28px] flex items-center justify-center gap-4 shadow-sm hover:bg-luxury-cream transition-all group active:scale-95">
+                    <img src="https://www.google.com/favicon.ico" className="w-5 h-5 grayscale group-hover:grayscale-0 transition-all" alt="Google" />
+                    <span className="text-sm tracking-tight uppercase">Continuer avec Google</span>
+                  </button>
+                </>
+              )}
            </div>
 
            <p className="text-center">
@@ -283,7 +305,7 @@ function App() {
                 </div>
               </div>
               <div className="flex gap-4"><button onClick={prevStep} className="flex-1 bg-luxury-cream text-luxury-gold font-black py-6 rounded-[28px] text-[10px] uppercase tracking-widest">Retour</button><button onClick={completeOnboarding} disabled={isAppLoading} className="flex-[2] bg-luxury-gold text-white font-black py-6 rounded-[28px] shadow-xl shadow-luxury-gold/30 hover:bg-luxury-charcoal transition-all uppercase tracking-widest text-xs">
-                {isAppLoading ? <Loader2 className="animate-spin mx-auto" /> : "Générer mon Destin"}
+                {isAppLoading ? <Loader2 className="animate-spin mx-auto" /> : "Finaliser ma Signature"}
               </button></div>
             </div>
           )}
@@ -376,8 +398,8 @@ function App() {
       )}
 
       {activeTab === 'meals' && (
-        <div className="p-8 space-y-8 animate-in fade-in max-w-lg mx-auto">
-           <div className="flex justify-between items-end"><div className="space-y-2"><h3 className="text-luxury-gold font-black uppercase text-[10px] tracking-[0.4em]">Votre Sélection</h3><h2 className="text-4xl font-serif font-black text-luxury-charcoal tracking-tight">Le Menu</h2></div><button onClick={() => handleGenerate()} className="bg-white p-4 rounded-3xl text-luxury-gold shadow-lg hover:rotate-180 transition-all duration-700 border border-luxury-gold/10"><Sparkles /></button></div>
+        <div className="p-8 space-y-6 animate-in fade-in max-w-lg mx-auto">
+           <div className="flex justify-between items-end px-2"><div className="space-y-2"><h3 className="text-luxury-gold font-black uppercase text-[10px] tracking-[0.4em]">Votre Sélection</h3><h2 className="text-4xl font-serif font-black text-luxury-charcoal">Le Menu</h2></div><button onClick={() => handleGenerate()} className="bg-white p-4 rounded-3xl text-luxury-gold shadow-lg hover:rotate-180 transition-all duration-700 border border-luxury-gold/10"><Sparkles /></button></div>
            <div className="space-y-6">
              {dailyPlan.map(recipe => (
                <div key={recipe.id} onClick={() => setSelectedRecipe(recipe)} className="bg-white p-7 rounded-[56px] shadow-2xl border border-luxury-gold/5 flex gap-6 items-center group cursor-pointer hover:scale-[1.03] transition-all relative overflow-hidden">
@@ -396,7 +418,6 @@ function App() {
         </div>
       )}
 
-      {/* FOOTER NAV BAR PREMIUM */}
       <nav className="fixed bottom-10 left-8 right-8 bg-luxury-charcoal/95 backdrop-blur-3xl p-6 rounded-[56px] shadow-[0_30px_60px_-15px_rgba(0,0,0,0.6)] flex justify-around items-center z-50 border border-white/5">
         {[
           { id: 'dashboard', icon: TrendingUp, label: 'Palais' },
@@ -420,7 +441,7 @@ function App() {
               <div className="space-y-6 text-center">
                  <div className="bg-luxury-gold/10 inline-block px-6 py-2 rounded-full text-luxury-gold text-[10px] font-black uppercase tracking-[0.4em]">Signature Gastronomique</div>
                  <h2 className="text-5xl font-serif font-black text-luxury-charcoal leading-[1.1] tracking-tighter">{selectedRecipe.name}</h2>
-                 <p className="text-luxury-bordeaux/60 font-medium italic text-xl px-4 leading-relaxed leading-relaxed">"{selectedRecipe.description}"</p>
+                 <p className="text-luxury-bordeaux/60 font-medium italic text-xl px-4 leading-relaxed">"{selectedRecipe.description}"</p>
               </div>
               <div className="grid grid-cols-3 gap-4">
                  {[{v: selectedRecipe.calories, l: 'Kcal'}, {v: selectedRecipe.proteins+'g', l: 'Prot.'}, {v: selectedRecipe.prepTime+'m', l: 'Temps'}].map(s => <div key={s.l} className="bg-white p-8 rounded-[40px] text-center border border-luxury-gold/10 shadow-2xl group hover:border-luxury-gold/30 transition-all"><p className="text-3xl font-black text-luxury-charcoal group-hover:scale-110 transition-transform">{s.v}</p><p className="text-[10px] font-black text-luxury-gold uppercase tracking-[0.3em] mt-1">{s.l}</p></div>)}
