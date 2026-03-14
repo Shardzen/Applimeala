@@ -1,6 +1,12 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss";
+
+@theme {
+  --color-luxury-bordeaux: #4A0404;
+  --color-luxury-gold: #D4AF37;
+  --color-luxury-cream: #FDFCF8;
+  --color-luxury-charcoal: #1A1A1A;
+  --font-serif: "Playfair Display", serif;
+}
 
 :root {
   background-color: #FDFCF8; /* luxury-cream */
