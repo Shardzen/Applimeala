@@ -14,6 +14,7 @@ export interface UserProfile {
   targetWeight: number;
   activityLevel: ActivityLevel;
   trainingFrequency: number;
+  workoutLocation: 'HOME' | 'GYM';
   goal: UserGoal;
   goalSpeed: GoalSpeed;
   budget: BudgetLevel;
@@ -28,9 +29,9 @@ export interface UserProfile {
 export interface Exercise {
   id: string;
   name: string;
-  reps?: string;
-  sets?: number;
-  weightUsed?: string; // For tracking
+  reps: string;
+  sets: number;
+  weightUsed?: string; // Carnet de notes
 }
 
 export interface Workout {
