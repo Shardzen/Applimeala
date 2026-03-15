@@ -8,39 +8,40 @@
   --font-serif: "Playfair Display", serif;
 }
 
-/* LE MOTEUR DE THÈME */
 :root {
   --bg-palais: #FDFCF8;
   --bg-surface: #FFFFFF;
   --text-main: #1A1A1A;
-  --text-muted: rgba(74, 4, 4, 0.6);
-  --border-subtile: rgba(212, 175, 55, 0.1);
+  --text-gold: #D4AF37;
+  --border-subtile: rgba(212, 175, 55, 0.15);
 }
 
-.dark {
+html.dark {
   --bg-palais: #0A0A0A;
   --bg-surface: #141414;
   --text-main: #FDFCF8;
-  --text-muted: rgba(212, 175, 55, 0.6);
-  --border-subtile: rgba(212, 175, 55, 0.2);
+  --text-gold: #D4AF37;
+  --border-subtile: rgba(212, 175, 55, 0.3);
 }
 
-/* APPLICATION GLOBALE */
 html, body {
   background-color: var(--bg-palais) !important;
   color: var(--text-main) !important;
-  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: background-color 0.5s cubic-bezier(0.4, 0, 0.2, 1), color 0.5s ease;
   margin: 0;
-  min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
 }
 
-/* CLASSES UTILITAIRES DYNAMIQUES */
 .bg-palais { background-color: var(--bg-palais); }
-.bg-elite-surface { background-color: var(--bg-surface); }
-.text-elite { color: var(--text-main); }
-.text-elite-muted { color: var(--text-muted); }
-.border-elite { border-color: var(--border-subtile); }
+.bg-surface { background-color: var(--bg-surface); }
+.text-theme { color: var(--text-main); }
+.border-theme { border-color: var(--border-subtile); }
 
-/* Scrollbar dorée */
-::-webkit-scrollbar { width: 6px; }
-::-webkit-scrollbar-thumb { background: #D4AF37; border-radius: 10px; }
+/* Animation Signature */
+@keyframes gold-glow {
+  0% { box-shadow: 0 0 5px rgba(212, 175, 55, 0.2); }
+  50% { box-shadow: 0 0 20px rgba(212, 175, 55, 0.4); }
+  100% { box-shadow: 0 0 5px rgba(212, 175, 55, 0.2); }
+}
+
+.animate-gold-glow { animation: gold-glow 3s infinite; }
